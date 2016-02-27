@@ -2,4 +2,4 @@ TODO:
 1. Interface with nibabel (niftty lib) for easy reading data base
 2. Convert data-base to like-mnist style, for easy reading with tensorflow
 3. Create examples using random subsampling
-4. Develop netwrok code with tensorBoard
+4. Develop network code with tensorBoard
