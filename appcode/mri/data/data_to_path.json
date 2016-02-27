@@ -1,0 +1,5 @@
+{"SchizReg": {"data":"/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/Images3D/",
+              "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/Labels3D/"},
+  "SchizDataNonReg": {"data":"/media/ohadsh/sheard/Ohad/thesis/data/SchizDataNonReg/SchizReg/Images3D/",
+              "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizDataNonReg/Labels3D/"}
+}
