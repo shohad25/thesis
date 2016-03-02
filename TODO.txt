@@ -1,6 +1,41 @@
 TODO:
-1. Interface with nibabel (niftty lib) for easy reading data base
+DONE 1. Interface with nibabel (niftty lib) for easy reading data base
 2. Convert data-base to like-mnist style, for easy reading with tensorflow
 3. Create examples using random subsampling
 4. Develop network code with tensorBoard
-5.
+
+SubTasks:
+
+dataCreator:
+	1. Add prints to dataCreator
+	2. Add show option to dataCreator
+	3. Create meta data
+	4. Do the train/test division in the dataCreator step
+
+shuffle:
+	1. Develop shuffle scriot
+
+fileHandler:
+	1. Handle the issue with the reshape blob
+
+viewers:
+	1. Create generic viewer
+	2. Create viewer for trainin examples
+
+Matlab:
+	Run all interpolation methods for comparison
+
+DataBase:
+	1. Create mnist-like data base with get_batch(50) method.
+		- load 1000 examples
+		- shuffle them (permute)
+		- update number of examples which was seen
+
+TensorFlow:
+	1. Develop a network
+
+General:
+	1. Add run-form command line class, as I have in work
+
+
+

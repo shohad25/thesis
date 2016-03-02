@@ -15,13 +15,13 @@ def get_dummy_k_space_and_image(img):
         k_space = np.fft.fftshift(np.fft.fft2(img))
 
         # Reconstruct image
-        dummy_img = np.fft.iff2(k_space).real()
+        dummy_img = np.abs(np.fft.ifft2(k_space))
     else:
         for i in range(0, img.shape[2]):
             # Create k-space from image, assuming this is the fully-sampled k-space.
             k_space[:,:,i] = np.fft.fftshift(np.fft.fft2(img[:,:,i]))
 
             # Reconstruct image
-            dummy_img[:,:,i] = np.fft.ifft2(k_space[:,:,i]).real
+            dummy_img[:,:,i] = np.abs(np.fft.ifft2(k_space[:,:,i]))
 
     return k_space, dummy_img
