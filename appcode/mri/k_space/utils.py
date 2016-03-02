@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def get_dummy_k_space_and_image(img):
     """
     Get an MRI image and return k_space and dummy image

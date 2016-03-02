@@ -1,13 +1,13 @@
 """
 MRI data base - all needed for handle my MRI database, NIfTI and DICOM as well
 """
-import os
-import nibabel as nib
-import numpy as np
 import json
+import os
 from collections import OrderedDict
-from common.orthoslicer import OrthoSlicer3D
 
+import nibabel as nib
+
+from common.viewers.orthoslicer import OrthoSlicer3D
 
 with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data_to_path.json'), 'r') as f:
     data_to_path = json.load(f)

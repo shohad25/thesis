@@ -3,3 +3,4 @@ TODO:
 2. Convert data-base to like-mnist style, for easy reading with tensorflow
 3. Create examples using random subsampling
 4. Develop network code with tensorBoard
+5.
