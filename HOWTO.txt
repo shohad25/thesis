@@ -1,0 +1,25 @@
+How to file:
+
+1. First, you need to have a nifti database of MRI scans,
+   The dataBase should be in 1 directory, each case in different dir, named "caseX"
+
+2. You can create a dataBase by using:
+    from appcode.mri.data.mri_data_base import MriDataBase
+    data_source = MriDataBase('SchizReg')
+
+    Need to data_to_path.json in appcode.mri.data in order to init the class
+
+3. Create a base data for training using:
+    data_source = MriDataBase(data_base_name)
+    data_creator = DataCreator(data_source, output_dir, axial_limits=axial_limits)
+    data_creator.create_examples()
+
+    Or by script:
+    python create_base_data_for_train.py --data_base_name=SchizReg --output_dir=/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/base/
+
+4. Shuffle the data using:
+    python shuffle_data.py --base_dir=/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/base
+    --output_dir=/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/shuffle/ --seed=135
+
+
+5. Train and have fun

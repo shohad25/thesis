@@ -1,5 +1,8 @@
 {"SchizReg": {"data":"/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/Images3D/",
-              "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/Labels3D/"},
+              "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/Labels3D/",
+              "info": "/home/ohadsh/work/python/thesis/appcode/mri/data/SchizReg/"},
+
   "SchizDataNonReg": {"data":"/media/ohadsh/sheard/Ohad/thesis/data/SchizDataNonReg/SchizReg/Images3D/",
-              "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizDataNonReg/Labels3D/"}
+              "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizDataNonReg/Labels3D/",
+              "info": ""}
 }

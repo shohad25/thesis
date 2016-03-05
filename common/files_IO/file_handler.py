@@ -51,7 +51,7 @@ class FileHandler:
         :param reshaped: reshape blob
         :return:
         """
-        assert self.file_mode == 'write'
+        assert self.file_mode == 'read'
         assert self.file_obj is not None
         ret = np.fromfile(self.file_obj, count=n*self.block_size, dtype=self.info["dtype"])
 
@@ -70,10 +70,12 @@ class FileHandler:
         ch = self.info["channels"]
         if ch == 1:
             # TODO: get get [E, h,w] instead of [h,w,E]
-            data.reshape(n / self.block_size, self.info['height'], self.info['width']).transpose().squeeze()
+            ret = data.reshape(n / self.block_size, self.info['height'], self.info['width']).transpose().squeeze()
+            # ret = data.reshape(n / self.block_size, self.info['height'], self.info['width']).squeeze()
         else:
             # TODO: test it
-            data.reshape(n / self.block_size, self.info['height'], self.info['width'], ch).transpose().squeeze()
+            ret = data.reshape(n / self.block_size, self.info['height'], self.info['width'], ch).transpose().squeeze()
+            # ret = data.reshape(n / self.block_size, self.info['height'], self.info['width'], ch).squeeze()
 
-        return data
+        return ret
 

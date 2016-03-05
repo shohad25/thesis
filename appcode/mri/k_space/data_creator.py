@@ -8,6 +8,7 @@ from appcode.mri.k_space.utils import get_dummy_k_space_and_image
 from appcode.mri.k_space.files_info import get_file_info
 from common.files_IO.file_handler import FileHandler
 
+
 class DataCreator:
     """
     DataCreator - Class of data creator object. Gets MriDataBase object and create example for training
@@ -38,8 +39,12 @@ class DataCreator:
 
         # For all cases in items
         for case in items:
+            case_name = case.split('.')[0]
+            print "Working on case: " + case_name
+
             # Set output path and create dir
-            out_path = os.path.join(self.base_out_path, case.split('.')[0])
+            tt = self.mri_data_base.info["train_test_list"][case_name]
+            out_path = os.path.join(self.base_out_path, tt, case_name)
             os.mkdir(out_path)
             counter = 0
 
@@ -54,7 +59,9 @@ class DataCreator:
 
             # For each Z in axial limits, create masks and dump examples
             for z in range(self.axial_limits[0], self.axial_limits[1]+1):
-                k_space_2d = image_3d[:, :, z]
+                k_space_2d = k_space_3d[:, :, z]
+                k_space_real = k_space_2d.real.astype(np.int16)
+                k_space_imag = k_space_2d.imag.astype(np.int16)
                 dummy_image_2d = dummy_image_3d[:, :, z]
 
                 for mask_type in range(0,2):
@@ -62,14 +69,34 @@ class DataCreator:
                     mask = get_random_mask(w, h, factor=2, start_line=mask_type)
 
                     # Dump example
+                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z)
                     dump_example(out_path, counter,
-                                 dict(k_space_real=k_space_2d, k_space_imag=k_space_2d,
-                                      image=dummy_image_2d, mask=mask, meta_data=create_meta_data(meta_data)))
+                                 dict(k_space_real=k_space_real, k_space_imag=k_space_imag,
+                                      image=dummy_image_2d, mask=mask, meta_data=meta_data_to_write))
                     # Add to counter
                     counter += 1
 
+    def create_meta_data(self, meta_data, case, axial_slice):
+        """
+        Create meta data vector
+        :param meta_data: from mri data base
+        :param case: case name
+        :param axial_slice: axial slice number
+        :return:
+        """
+        case_hash = np.float32(self.mri_data_base.info["case_to_hash"][case])
+        bit_pix = np.float32(meta_data["bitpix"])
+        return np.array([case_hash, axial_slice, bit_pix], dtype=np.float32)
+
 
 def dump_example(out_path, counter, data_all):
+    """
+    write 1 example to disk
+    :param out_path: output path
+    :param counter: counter for count examples
+    :param data_all: dictionary of all data types
+    :return: None
+    """
 
     for (name, data) in data_all.iteritems():
         # Set file name
@@ -77,7 +104,7 @@ def dump_example(out_path, counter, data_all):
 
         # Create file handler and write to file
         f_handler = FileHandler(os.path.join(out_path, file_name), get_file_info(name), "write")
-        f_handler.write(data)
+        f_handler.write(data.transpose())
 
 
 def set_file_name(name, counter):
@@ -119,7 +146,3 @@ def get_random_mask(w, h, factor, start_line=0, keep_center=0):
         center_width = int(np.floor(0.5 * keep_center * h))
         mask[range(center_line-center_width, center_line + center_width, 1), :] = 1
     return mask
-
-
-def create_meta_data(meta_data):
-    return np.array([0], dtype=np.float32)

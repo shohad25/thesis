@@ -7,13 +7,13 @@ DONE 1. Interface with nibabel (niftty lib) for easy reading data base
 SubTasks:
 
 dataCreator:
-	1. Add prints to dataCreator
+	DONE - 1. Add prints to dataCreator
 	2. Add show option to dataCreator
-	3. Create meta data
-	4. Do the train/test division in the dataCreator step
+	DONE - 3. Create meta data
+	DONE - 4. Do the train/test division in the dataCreator step
 
 shuffle:
-	1. Develop shuffle scriot
+	DONE - 1. Develop shuffle script
 
 fileHandler:
 	1. Handle the issue with the reshape blob
@@ -26,7 +26,7 @@ Matlab:
 	Run all interpolation methods for comparison
 
 DataBase:
-	1. Create mnist-like data base with get_batch(50) method.
+	DONE - 1. Create mnist-like data base with get_batch(50) method.
 		- load 1000 examples
 		- shuffle them (permute)
 		- update number of examples which was seen
@@ -37,5 +37,13 @@ TensorFlow:
 General:
 	1. Add run-form command line class, as I have in work
 
+Data:
+1. What is the best representation to imaeg & kspace
+    image - int16?
+    k_space - currently float64, but quantized to int16, ASK TAMMY!
+
+    k_space:
+    The values are very small, but int is > 0, need to to normalization and
+    save the factor in meta_data
 
 

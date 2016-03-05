@@ -32,6 +32,7 @@ class MriDataBase:
         file_suffix = "hdr" if nifti_or_dicom == 'nifti' else 'dicom'  # TODO
         self.items = sorted([item for item in os.listdir(data_to_path[data_name]["data"]) if file_suffix in item])
         self.data = dict(img=[],meta_data=[], labels=[])
+        self.info = self.set_info(data_to_path[data_name]["info"])
 
     def get_source_data(self, item='all'):
         """
@@ -51,6 +52,21 @@ class MriDataBase:
                 data['img'].append(niftii_obj.get_data())
 
         return data
+
+    def set_info(self, info_path):
+        """
+        Set info for dataBase.
+        :param info_path: info path
+        :return: dictionary
+        """
+        ret_dic = {}
+        with open(os.path.join(info_path, 'case_to_hash.json'), 'r') as f:
+            ret_dic["case_to_hash"] = json.load(f)
+
+        with open(os.path.join(info_path, 'train_test_list.json'), 'r') as f:
+            ret_dic["train_test_list"] = json.load(f)
+
+        return ret_dic
 
     def show_data(self, data):
         """
