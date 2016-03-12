@@ -45,5 +45,3 @@ Data:
     k_space:
     The values are very small, but int is > 0, need to to normalization and
     save the factor in meta_data
-
-

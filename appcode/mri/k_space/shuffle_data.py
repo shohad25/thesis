@@ -23,7 +23,8 @@ def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123):
     tt = eval(tt)
     for t in tt:
         # Get all examples
-
+        basic_out_path = os.path.join(output_dir, 'shuffle', t)
+        os.makedirs(basic_out_path)
         all_examples = glob.glob(os.path.join(base_dir, t, "*/*%s*" % files_info.keys()[0]))
         # Permute the list:
         random.shuffle(all_examples)
@@ -31,7 +32,7 @@ def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123):
         # Now, write example according to all_examples order
         for (file_name, file_info) in files_info.iteritems():
             # Set output file name
-            out_path = os.path.join(output_dir, t, "000000.%s.bin" % file_name)
+            out_path = os.path.join(basic_out_path, "000000.%s.bin" % file_name)
             print "%s - Write %s into %s" % (t, file_name, out_path)
             with open(out_path, 'wb') as f_out:
                 count_examples = 0

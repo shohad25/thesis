@@ -25,7 +25,7 @@ class DataCreator:
         :return:
         """
         self.mri_data_base = mri_data_base
-        self.base_out_path = output_path
+        self.base_out_path = os.path.join(output_path, 'base')
         self.axial_limits = axial_limits
 
     def create_examples(self, item='all'):
@@ -45,7 +45,7 @@ class DataCreator:
             # Set output path and create dir
             tt = self.mri_data_base.info["train_test_list"][case_name]
             out_path = os.path.join(self.base_out_path, tt, case_name)
-            os.mkdir(out_path)
+            os.makedirs(out_path)
             counter = 0
 
             # Read source data and create k_space + dummy image
@@ -60,8 +60,8 @@ class DataCreator:
             # For each Z in axial limits, create masks and dump examples
             for z in range(self.axial_limits[0], self.axial_limits[1]+1):
                 k_space_2d = k_space_3d[:, :, z]
-                k_space_real = k_space_2d.real.astype(np.int16)
-                k_space_imag = k_space_2d.imag.astype(np.int16)
+                k_space_real = k_space_2d.real
+                k_space_imag = k_space_2d.imag
                 dummy_image_2d = dummy_image_3d[:, :, z]
 
                 for mask_type in range(0,2):

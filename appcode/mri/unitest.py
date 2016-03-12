@@ -18,7 +18,12 @@ data_source = MriDataBase('SchizReg')
 data_example = data_source.get_source_data(data_source.items[0])
 dat = data_example['img'][0]
 original_image = dat[:,:,50]
-k_space, dummy_image = get_dummy_k_space_and_image(dat[:,:,50])
+# k_space, dummy_image = get_dummy_k_space_and_image(dat[:,:,50])
+k_space_all, dummy_image_all = get_dummy_k_space_and_image(dat)
+
+
+k_space = k_space_all[:,:,50]
+dummy_image = dummy_image_all[:,:,50]
 
 if to_show:
 
@@ -30,10 +35,12 @@ if to_show:
     imshow(original_image, ax=ax[0][0], fig=fig)
 
     ax[0][1].set_title('Log-k_space')
-    imshow(np.log(1+np.abs(k_space)), ax=ax[0][1], fig=fig)
+    imshow(np.log(np.abs(k_space)), ax=ax[0][1], fig=fig)
 
     ax[1][0].set_title('Dummy Image')
     imshow(dummy_image, ax=ax[1][0], fig=fig)
 
     ax[1][1].set_title('Diff')
-    imshow(np.log(np.abs(original_image - dummy_image)), ax=ax[1][1], fig=fig)
+    imshow(np.abs(original_image - dummy_image), ax=ax[1][1], fig=fig)
+
+a = 1

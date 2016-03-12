@@ -42,6 +42,7 @@ class FileHandler:
         assert self.file_obj is not None
         assert self.info["dtype"] == data.dtype
 
+
         self.file_obj.write(data.ravel())
 
     def read(self, n=-1, reshaped=True):
