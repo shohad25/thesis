@@ -70,13 +70,13 @@ class FileHandler:
         n = len(data)
         ch = self.info["channels"]
         if ch == 1:
-            # TODO: get get [E, h,w] instead of [h,w,E]
             ret = data.reshape(n / self.block_size, self.info['height'], self.info['width']).transpose().squeeze()
-            # ret = data.reshape(n / self.block_size, self.info['height'], self.info['width']).squeeze()
+            # N, h, w
+            ret = ret.transpose(np.roll(np.arange(len(ret.shape)), 1))
         else:
-            # TODO: test it
             ret = data.reshape(n / self.block_size, self.info['height'], self.info['width'], ch).transpose().squeeze()
-            # ret = data.reshape(n / self.block_size, self.info['height'], self.info['width'], ch).squeeze()
+            # N, h, w
+            ret = ret.transpose(np.roll(np.arange(len(ret.shape)), 1))
 
         return ret
 

@@ -63,30 +63,31 @@ class DataCreator:
                 k_space_real = k_space_2d.real
                 k_space_imag = k_space_2d.imag
                 dummy_image_2d = dummy_image_3d[:, :, z]
-
+                factor = 2
                 for mask_type in range(0,2):
                     # Create mask
-                    mask = get_random_mask(w, h, factor=2, start_line=mask_type)
+                    mask = get_random_mask(w, h, factor=factor, start_line=mask_type)
 
                     # Dump example
-                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z)
+                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z, factor)
                     dump_example(out_path, counter,
                                  dict(k_space_real=k_space_real, k_space_imag=k_space_imag,
                                       image=dummy_image_2d, mask=mask, meta_data=meta_data_to_write))
                     # Add to counter
                     counter += 1
 
-    def create_meta_data(self, meta_data, case, axial_slice):
+    def create_meta_data(self, meta_data, case, axial_slice, factor):
         """
         Create meta data vector
         :param meta_data: from mri data base
         :param case: case name
         :param axial_slice: axial slice number
+        :param factor: sub-sampling factor
         :return:
         """
         case_hash = np.float32(self.mri_data_base.info["case_to_hash"][case])
         bit_pix = np.float32(meta_data["bitpix"])
-        return np.array([case_hash, axial_slice, bit_pix], dtype=np.float32)
+        return np.array([case_hash, axial_slice, bit_pix, np.float32(factor)], dtype=np.float32)
 
 
 def dump_example(out_path, counter, data_all):

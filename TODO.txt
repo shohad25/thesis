@@ -27,9 +27,6 @@ Matlab:
 
 DataBase:
 	DONE - 1. Create mnist-like data base with get_batch(50) method.
-		- load 1000 examples
-		- shuffle them (permute)
-		- update number of examples which was seen
 
 TensorFlow:
 	1. Develop a network
@@ -39,9 +36,9 @@ General:
 
 Data:
 1. What is the best representation to imaeg & kspace
-    image - int16?
-    k_space - currently float64, but quantized to int16, ASK TAMMY!
+    image - int16
+    k_space - currently float64 so real = image = float32
 
     k_space:
-    The values are very small, but int is > 0, need to to normalization and
+    The values are very small, but int is > 0 -> probably learn the network the log image
     save the factor in meta_data
