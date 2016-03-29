@@ -18,7 +18,7 @@ from sklearn.preprocessing import scale
 # k space data set
 # base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/shuffle/'
 base_dir = '/home/ohadsh/work/python/data/'
-file_names = ['k_space_real', 'k_space_imag', 'mask', 'meta_data']
+file_names = ['mask', 'meta_data', 'image']
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -100,8 +100,8 @@ def main(_):
         if i % FLAGS.print_test == 0:  # Record summary data and the accuracy    
 
             next_batch = copy.deepcopy(data_set.test.next_batch(FLAGS.mini_batch_size))
-            batch_ys = np.copy(next_batch['k_space_real'])
-            batch_xs = next_batch['k_space_real'] * next_batch['mask']# TODO:: add log
+            batch_ys = np.copy(next_batch['image'])
+            batch_xs = next_batch['image'] #* next_batch['mask']# TODO:: add log
 
             if FLAGS.to_show:
                 fig, ax = plt.subplots(nrows=1, ncols=2)
@@ -125,8 +125,8 @@ def main(_):
             # 	import pdb
             # 	pdb.set_trace()
             next_batch = copy.deepcopy(data_set.train.next_batch(FLAGS.mini_batch_size))
-            batch_ys = np.copy(next_batch['k_space_real'])
-            batch_xs = next_batch['k_space_real'] * next_batch['mask']# TODO:: add log
+            batch_ys = np.copy(next_batch['image'])
+            batch_xs = next_batch['image'] # * next_batch['mask']# TODO:: add log
 
             feed = {x: batch_xs, y_: batch_ys}
             if len(batch_xs):

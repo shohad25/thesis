@@ -92,7 +92,7 @@ class DataSet:
             elif len(self.current[file_name].shape) == 3:
                 self.current[file_name] = self.current[file_name][perm, :, :]
             elif len(self.current[file_name].shape) == 4:
-                self.current[file_name] = self.current[file_name][perm, :, :, :, :]
+                self.current[file_name] = self.current[file_name][perm, :, :, :]
 
     def next_batch(self, n):
         """
@@ -118,7 +118,7 @@ class DataSet:
             elif len(self.current[file_name].shape) == 3:
                 ret[file_name] = self.current[file_name][offset:offset+n, :, :]
             elif len(self.current[file_name].shape) == 4:
-                ret[file_name] = self.current[file_name][offset:offset+n, :, :, :, :]
+                ret[file_name] = self.current[file_name][offset:offset+n, :, :, :]
 
         # Update counter
         self.counter += n

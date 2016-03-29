@@ -13,7 +13,7 @@ class FileHandler:
         self.info = info
         self.name = name
         self.file_mode = read_or_write
-        self.block_size = info["width"] * info["height"]
+        self.block_size = info["width"] * info["height"] * self.info["channels"]
         self.file_obj = self.__create_file_obj__()
 
     def get_file_obj(self):

@@ -42,3 +42,14 @@ Data:
     k_space:
     The values are very small, but int is > 0 -> probably learn the network the log image
     save the factor in meta_data
+
+2. Run histogram on real & image values of k-space in order to learn the mean & variancec.
+   - Where is the information? around zero?? , if yes, when normalaize all data to be bigger than zero, we loosing the information
+
+3. Crop image to 4 smaller images, 64x64, better for run-time.
+  - What to do in the overlaps?
+
+4. Data quantization: 
+	- data -> log instead of real values
+	- move to uint16 representation while zero is missing lines
+	- Do inverse-furier of the image, and learn to complete the missing line in image-space
