@@ -1,8 +1,8 @@
 TODO:
 DONE 1. Interface with nibabel (niftty lib) for easy reading data base
-2. Convert data-base to like-mnist style, for easy reading with tensorflow
-3. Create examples using random subsampling
-4. Develop network code with tensorBoard
+DONE 2. Convert data-base to like-mnist style, for easy reading with tensorflow
+DONE 3. Create examples using random subsampling
+DONE 4. Develop network code with tensorBoard
 
 SubTasks:
 
@@ -53,3 +53,4 @@ Data:
 	- data -> log instead of real values
 	- move to uint16 representation while zero is missing lines
 	- Do inverse-furier of the image, and learn to complete the missing line in image-space
+	- add normalaize to get_batch function

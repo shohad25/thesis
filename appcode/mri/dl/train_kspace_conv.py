@@ -13,7 +13,7 @@ from common.viewers.imshow import imshow
 import matplotlib.pyplot as plt
 import copy
 
-from sklearn.preprocessing import scale
+from sklearn.preprocessing import normalize
 
 # k space data set
 # base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/shuffle/'
@@ -41,8 +41,8 @@ def main(_):
     # Reshape the input for batchSize, 28x28 image, 1 channel
     x_image = tf.reshape(x, [-1, 256, 256, 1], name='x_input_reshape')
     y_image = tf.reshape(y_, [-1, 256, 256, 1], name='y_input_reshape')
-
-    # image_summary = tf.image_summary('input', x_image)
+    # x_image = tf.nn.l2_normalize(x_image_org, dim=0, epsilon=1e-12, name=None)
+    # y_image = tf.nn.l2_normalize(y_image_org, dim=0, epsilon=1e-12, name=None)
 
     # Init all W and b:
     # First convolutional layer weights
@@ -69,6 +69,7 @@ def main(_):
 
     y_pred = tf.reshape(h_conv3, [-1, 256, 256, 1], name='y_pred')
 
+    image_summary = tf.image_summary('input', y_pred)
 
     # More name scopes will clean up the graph representation
     with tf.name_scope('xent'):

@@ -94,7 +94,7 @@ class DataSet:
             elif len(self.current[file_name].shape) == 4:
                 self.current[file_name] = self.current[file_name][perm, :, :, :]
 
-    def next_batch(self, n):
+    def next_batch(self, n, norm=False):
         """
         Return n examples
         :param n: Number of examples
