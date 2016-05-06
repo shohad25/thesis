@@ -9,7 +9,8 @@ from common.viewers.imshow import imshow
 to_show = True
 
 # k space data set
-base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/shuffle/'
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/06_05_2016/shuffle/'
+
 
 file_names = ['k_space_real', 'k_space_imag', 'mask', 'meta_data', 'image']
 data_set = KspaceDataSet(base_dir, file_names, stack_size=50)
@@ -35,4 +36,4 @@ if to_show:
         # ax[1][1].set_title('meta_data')
         # imshow(batch["meta_data"][:,i], ax=ax[1][1], fig=fig)
 
-        plt.pause(1.0)
+        plt.waitforbuttonpress(timeout=-1)

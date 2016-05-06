@@ -41,8 +41,6 @@ class FileHandler:
         assert self.file_mode == 'write'
         assert self.file_obj is not None
         assert self.info["dtype"] == data.dtype
-
-
         self.file_obj.write(data.ravel())
 
     def read(self, n=-1, reshaped=True):
@@ -70,11 +68,11 @@ class FileHandler:
         n = len(data)
         ch = self.info["channels"]
         if ch == 1:
-            ret = data.reshape(n / self.block_size, self.info['height'], self.info['width']).transpose().squeeze()
+            ret = data.reshape(n / self.block_size, self.info['width'], self.info['height']).transpose().squeeze()
             # N, h, w
             ret = ret.transpose(np.roll(np.arange(len(ret.shape)), 1))
         else:
-            ret = data.reshape(n / self.block_size, self.info['height'], self.info['width'], ch).transpose().squeeze()
+            ret = data.reshape(n / self.block_size, self.info['width'], self.info['height'], ch).transpose().squeeze()
             # N, h, w
             ret = ret.transpose(np.roll(np.arange(len(ret.shape)), 1))
 
