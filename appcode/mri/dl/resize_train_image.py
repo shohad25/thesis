@@ -24,7 +24,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000, 'Number of steps to run trainer.')
 # flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
-flags.DEFINE_float('learning_rate', 1e-3, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_integer('mini_batch_size', 20, 'Size of mini batch')
 flags.DEFINE_integer('print_test', 100, 'Print test frequancy')
 flags.DEFINE_boolean('to_show', False, 'View data')
@@ -48,11 +48,11 @@ def main(_):
 
     # Init all W and b:
     # First convolutional layer weights
-    W_conv1 = weight_variable([5, 5, 1, 4])
-    b_conv1 = bias_variable([4])
+    W_conv1 = weight_variable([5, 5, 1, 8])
+    b_conv1 = bias_variable([8])
 
     # Second convolutional layer weights
-    W_conv2 = weight_variable([1, 1, 4, 1])
+    W_conv2 = weight_variable([1, 1, 8, 1])
     b_conv2 = bias_variable([1])
 
     # Third convolutional layer weights - reconstruction
@@ -71,8 +71,8 @@ def main(_):
 
     y_pred = tf.reshape(h_conv3, [-1, 256, 256, 1], name='y_pred')
 
-    image_summary = tf.image_summary('y_input', x_image_upscaled)
-    image_summary = tf.image_summary('y_pred', x_image)
+    # image_summary = tf.image_summary('y_input', x_image_upscaled)
+    image_summary = tf.image_summary('y_pred', y_pred)
 
     # More name scopes will clean up the graph representation
     with tf.name_scope('xent'):
