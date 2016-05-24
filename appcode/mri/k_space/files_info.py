@@ -11,11 +11,11 @@ with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'meta_data_p
 
 files_info = {"k_space_real":  {"width": 256, "height": 128, "channels": 1, "dtype": np.float32},
               "k_space_imag":  {"width": 256, "height": 128, "channels": 1, "dtype": np.float32},
-              "image":         {"width": 256, "height": 128, "channels": 1, "dtype": np.int16},
+              "image":         {"width": 256, "height": 128, "channels": 1, "dtype": np.float32},
 
               "k_space_real_gt":  {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
               "k_space_imag_gt":  {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
-              "image_gt":         {"width": 256, "height": 256, "channels": 1, "dtype": np.int16},
+              "image_gt":         {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
 
               "mask":          {"width": 256, "height": 256, "channels": 1, "dtype": np.uint8},
               "meta_data":     {"width": sizeof_meta_data, "height": 1,   "channels": 1, "dtype": np.float32}}

@@ -10,6 +10,8 @@ from common.files_IO.file_handler import FileHandler
 import matplotlib.pyplot as plt
 from common.viewers.imshow import imshow
 
+MAX_IM_VAL = 2.0**16 - 1
+
 class DataCreator:
     """
     DataCreator - Class of data creator object. Gets MriDataBase object and create example for training
@@ -52,6 +54,9 @@ class DataCreator:
             # Read source data and create k_space + dummy image
             source_data = data_base.get_source_data(case)
             image_3d = source_data['img'][0]
+
+            # Normalize image
+            k_space_3d /= MAX_IM_VAL
             k_space_3d, dummy_image_3d = get_dummy_k_space_and_image(image_3d)
             meta_data = source_data['meta_data'][0]
 
