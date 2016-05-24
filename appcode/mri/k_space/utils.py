@@ -1,8 +1,7 @@
 import numpy as np
 from numpy.fft import *
 
-# EPS = 0.01
-EPS = 0.0000000000000001
+EPS = 0.001
 
 def get_dummy_k_space_and_image(img):
     """
@@ -20,8 +19,8 @@ def get_dummy_k_space_and_image(img):
         k_space = fft2c(img).astype('complex64')
 
         # Clipping
-        k_space.real[np.where(np.abs(k_space.real) < EPS)] = EPS
-        k_space.imag[np.where(np.abs(k_space.imag) < EPS)] = EPS
+        k_space.real[np.where(np.abs(k_space.real) < EPS)] = 0
+        k_space.imag[np.where(np.abs(k_space.imag) < EPS)] = 0
 
         # Reconstruct image
         # dummy_img = np.abs(ifft2(k_space)).astype(np.int16)
@@ -32,12 +31,14 @@ def get_dummy_k_space_and_image(img):
             k_space[:,:,i] = (fft2c(img[:,:,i])).astype('complex64')
 
             # Clipping
-            k_space[:,:,i].real[np.where(np.abs(k_space[:,:,i].real) < EPS)] = EPS
-            k_space[:,:,i].imag[np.where(np.abs(k_space[:,:,i].imag) < EPS)] = EPS
+            k_space[:,:,i].real[np.where(np.abs(k_space[:,:,i].real) < EPS)] = 0
+            k_space[:,:,i].imag[np.where(np.abs(k_space[:,:,i].imag) < EPS)] = 0
 
             # Reconstruct image
             # dummy_img[:,:,i] = np.abs(ifft2(k_space[:,:,i])).astype(np.int16)
-            dummy_img[:,:,i] = np.real(ifft2c(k_space[:,:,i])).astype(np.float32)
+            dummy_img[:,:,i] = np.abs(np.real(ifft2c(k_space[:,:,i])).astype(np.float32))
+            dummy_img[:,:,i][np.where(np.abs(dummy_img[:,:,i]) < EPS)] = 0
+            dummy_img[:,:,i][np.where(dummy_img[:,:,i] > 1)] = 1
 
     return k_space, dummy_img
 

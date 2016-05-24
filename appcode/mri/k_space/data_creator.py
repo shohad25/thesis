@@ -10,7 +10,7 @@ from common.files_IO.file_handler import FileHandler
 import matplotlib.pyplot as plt
 from common.viewers.imshow import imshow
 
-MAX_IM_VAL = 2.0**16 - 1
+# MAX_IM_VAL = 2.0**16 - 1
 
 class DataCreator:
     """
@@ -56,10 +56,13 @@ class DataCreator:
             image_3d = source_data['img'][0]
 
             # Normalize image
-            k_space_3d /= MAX_IM_VAL
+            norm_factor = 1.0 / image_3d.max() 
+            image_3d = (image_3d * norm_factor).astype('float32')
             k_space_3d, dummy_image_3d = get_dummy_k_space_and_image(image_3d)
             meta_data = source_data['meta_data'][0]
-
+            import pdb
+            pdb.set_trace()
+            print "TODO: SAVE NORM FACTOR"
             # Set image sizes
             w = image_3d[:,:,0].shape[0]
             h = image_3d[:,:,0].shape[1]
