@@ -17,20 +17,21 @@ import copy
 from sklearn.preprocessing import scale
 
 # k space data set
-base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/06_05_2016/shuffle/'
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
 # base_dir = '/home/ohadsh/work/python/data/'
-file_names = ['k_space_real', 'k_space_real_gt']
+file_names = ['image', 'image_gt']
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000, 'Number of steps to run trainer.')
-# flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_integer('mini_batch_size', 20, 'Size of mini batch')
 flags.DEFINE_integer('print_test', 100, 'Print test frequancy')
 flags.DEFINE_boolean('to_show', False, 'View data')
 
 def main(_):
+    # saver = tf.train.Saver()
+
     # Import data
     data_set = KspaceDataSet(base_dir, file_names, stack_size=50)
     sess = tf.InteractiveSession()
@@ -72,7 +73,7 @@ def main(_):
 
     y_pred = tf.reshape(h_conv3, [-1, 256, 256, 1], name='y_pred')
 
-    # image_summary = tf.image_summary('y_input', x_image)
+    image_summary = tf.image_summary('x_upscaled', x_image_upscaled)
     image_summary = tf.image_summary('y_pred', y_pred)
 
     # More name scopes will clean up the graph representation
@@ -80,8 +81,6 @@ def main(_):
         # Loss
         square_loss = tf.reduce_mean(tf.square(y_image - y_pred))
         _ = tf.scalar_summary('square-loss', square_loss)
-        # abs_loss = tf.reduce_sum(tf.abs(y_image - y_pred))
-        # _ = tf.scalar_summary('abs-loss', abs_loss)
     
     with tf.name_scope('train'):
         # Training evaluation
@@ -106,19 +105,10 @@ def main(_):
         # Record summary data and the accuracy    
 
             next_batch = copy.deepcopy(data_set.test.next_batch(FLAGS.mini_batch_size))
-            batch_ys = next_batch['k_space_real_gt']
-            batch_xs = next_batch['k_space_real']
-
-            if FLAGS.to_show:
-                fig, ax = plt.subplots(nrows=1, ncols=2)
-                ax[0].set_title('xs')
-                imshow(batch_xs[0,:,:], ax=ax[0], fig=fig, block=True)
-                ax[1].set_title('ys')
-                imshow(batch_ys[0,:,:], ax=ax[1], fig=fig, block=True)
-                plt.waitforbuttonpress(timeout=-1)
-
-
+            batch_ys = next_batch['image_gt']
+            batch_xs = next_batch['image']
             feed = {x: batch_xs, y_: batch_ys}
+
             if len(batch_xs):
             	result = sess.run([merged, accuracy], feed_dict=feed)
             	summary_str = result[0]
@@ -127,14 +117,9 @@ def main(_):
             	print('Accuracy at step %s: %s' % (i, acc))
 
         else:
-            # Training
-            # if i == 244:
-            # 	import pdb
-            # 	pdb.set_trace()
-
             next_batch = copy.deepcopy(data_set.train.next_batch(FLAGS.mini_batch_size))
-            batch_ys = next_batch['k_space_real_gt']
-            batch_xs = next_batch['k_space_real']
+            batch_ys = next_batch['image_gt']
+            batch_xs = next_batch['image']
             feed = {x: batch_xs, y_: batch_ys}
             if len(batch_xs):
             	sess.run(train_step, feed_dict=feed)

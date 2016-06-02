@@ -30,6 +30,8 @@ flags.DEFINE_integer('print_test', 100, 'Print test frequancy')
 flags.DEFINE_boolean('to_show', False, 'View data')
 
 def main(_):
+    saver = tf.train.Saver()
+
     # Import data
     data_set = KspaceDataSet(base_dir, file_names, stack_size=50)
     sess = tf.InteractiveSession()

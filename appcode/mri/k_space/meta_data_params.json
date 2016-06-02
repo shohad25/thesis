@@ -3,5 +3,6 @@
   "axial_slice": 1,
   "bit_pix": 2,
   "factor": 3,
-  "sizeof_meta_data": 4
+  "norm_factor": 4,
+  "sizeof_meta_data": 5
 }

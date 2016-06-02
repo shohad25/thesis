@@ -60,9 +60,7 @@ class DataCreator:
             image_3d = (image_3d * norm_factor).astype('float32')
             k_space_3d, dummy_image_3d = get_dummy_k_space_and_image(image_3d)
             meta_data = source_data['meta_data'][0]
-            import pdb
-            pdb.set_trace()
-            print "TODO: SAVE NORM FACTOR"
+
             # Set image sizes
             w = image_3d[:,:,0].shape[0]
             h = image_3d[:,:,0].shape[1]
@@ -88,7 +86,7 @@ class DataCreator:
                     k_space_imag = get_subsample(k_space_imag_gt, mask, factor_h=factor, factor_w=1)
 
                     # Dump example
-                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z, factor)
+                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z, factor, norm_factor)
 
                     dump_example(out_path, counter,
                                  dict(k_space_real_gt=k_space_real_gt, k_space_imag_gt=k_space_imag_gt,
@@ -98,18 +96,19 @@ class DataCreator:
                     # Add to counter
                     counter += 1
 
-    def create_meta_data(self, meta_data, case, axial_slice, factor):
+    def create_meta_data(self, meta_data, case, axial_slice, factor, norm_factor):
         """
         Create meta data vector
         :param meta_data: from mri data base
         :param case: case name
         :param axial_slice: axial slice number
         :param factor: sub-sampling factor
+        :param norm_factor: 3D mri image normalazie factor
         :return:
         """
         case_hash = np.float32(self.mri_data_base.info["case_to_hash"][case])
         bit_pix = np.float32(meta_data["bitpix"])
-        return np.array([case_hash, axial_slice, bit_pix, np.float32(factor)], dtype=np.float32)
+        return np.array([case_hash, axial_slice, bit_pix, np.float32(factor), np.float32(norm_factor)], dtype=np.float32)
 
 
 def dump_example(out_path, counter, data_all, debug=False):
