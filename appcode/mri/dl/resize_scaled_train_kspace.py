@@ -18,16 +18,19 @@ from sklearn.preprocessing import scale
 
 # k space data set
 base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
+# base_dir = '/home/ohadsh/work/data/SchizData/SchizReg/train/02_06_2016/shuffle/'
 # base_dir = '/home/ohadsh/work/python/data/'
 file_names = ['k_space_real', 'k_space_real_gt', 'meta_data']
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('max_steps', 5000, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_steps', 1000000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_integer('mini_batch_size', 20, 'Size of mini batch')
-flags.DEFINE_integer('print_test', 100, 'Print test frequancy')
+flags.DEFINE_integer('print_test', 10000, 'Print test frequancy')
 flags.DEFINE_boolean('to_show', False, 'View data')
+
+logfile = open('results.log', 'w')
 
 def main(_):
     # saver = tf.train.Saver()
@@ -115,6 +118,8 @@ def main(_):
             	acc = result[1]
             	writer.add_summary(summary_str, i)
             	print('Accuracy at step %s: %s' % (i, acc))
+                logfile.writelines('Accuracy at step %s: %s\n' % (i, acc))
+                logfile.flush()
 
         else:
             next_batch = copy.deepcopy(data_set.train.next_batch(FLAGS.mini_batch_size))
@@ -126,3 +131,4 @@ def main(_):
 
 if __name__ == '__main__':
     tf.app.run()
+    logfile.close()
