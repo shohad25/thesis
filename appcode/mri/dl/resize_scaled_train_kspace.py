@@ -13,6 +13,8 @@ from common.deep_learning.helpers import *
 from common.viewers.imshow import imshow
 import matplotlib.pyplot as plt
 import copy
+import os
+import datetime
 
 from sklearn.preprocessing import scale
 
@@ -20,21 +22,23 @@ from sklearn.preprocessing import scale
 base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
 # base_dir = '/home/ohadsh/work/data/SchizData/SchizReg/train/02_06_2016/shuffle/'
 # base_dir = '/home/ohadsh/work/python/data/'
-file_names = ['k_space_real', 'k_space_real_gt', 'meta_data']
+file_names = ['k_space_real', 'k_space_real_gt']
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('max_steps', 1000000, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_integer('mini_batch_size', 20, 'Size of mini batch')
 flags.DEFINE_integer('print_test', 10000, 'Print test frequancy')
 flags.DEFINE_boolean('to_show', False, 'View data')
+tf.app.flags.DEFINE_string('train_dir', '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/',
+                           """Directory where to write event logs """
+                           """and checkpoint.""")
 
-logfile = open('results.log', 'w')
+logfile = open(os.path.join(FLAGS.train_dir, 'results.log'), 'w')
 
 def main(_):
-    # saver = tf.train.Saver()
-
+    
     # Import data
     data_set = KspaceDataSet(base_dir, file_names, stack_size=50)
     sess = tf.InteractiveSession()
@@ -95,13 +99,15 @@ def main(_):
         accuracy = tf.reduce_mean(tf.square(y_image - y_pred))
         _ = tf.scalar_summary('accuracy', accuracy)
 
+    # Create a saver.
+    saver = tf.train.Saver(tf.all_variables())
+
     # Merge all the summaries and write them out to /tmp/mnist_logs
     merged = tf.merge_all_summaries()
     writer = tf.train.SummaryWriter('/tmp/k_space_logs', sess.graph_def)
     tf.initialize_all_variables().run()
 
     # Train the model, and feed in test data and record summaries every 10 steps
-
     for i in range(FLAGS.max_steps):
         
         if i % FLAGS.print_test == 0:  
@@ -117,9 +123,11 @@ def main(_):
             	summary_str = result[0]
             	acc = result[1]
             	writer.add_summary(summary_str, i)
-            	print('Accuracy at step %s: %s' % (i, acc))
-                logfile.writelines('Accuracy at step %s: %s\n' % (i, acc))
+            	print('Time: %s , Accuracy at step %s: %s' % (datetime.datetime.now(), i, acc))
+                logfile.writelines('Time: %s , Accuracy at step %s: %s\n' % (datetime.datetime.now(), i, acc))
                 logfile.flush()
+                checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+                saver.save(sess, checkpoint_path, global_step=i)
 
         else:
             next_batch = copy.deepcopy(data_set.train.next_batch(FLAGS.mini_batch_size))
