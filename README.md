@@ -19,3 +19,7 @@ MRI, 1.5 Tesla,
       dtype='|S18'), 'scl_inter': array(nan, dtype=float32), 'quatern_d': array(0.0, dtype=float32), 'dim': array([  3, 256, 256, 124,   1,   1,   1,   1], dtype=int16), 'magic': array('ni1', 
       dtype='|S4'), 'datatype': array(4, dtype=int16), 'regular': array('r', 
       dtype='|S1'), 'slice_end': array(0, dtype=int16), 'qform_code': array(1, dtype=int16), 'qoffset_y': array(-0.0, dtype=float32), 'toffset': array(0.0, dtype=float32)}
+      
+      
+Best training so far
+0.0012
