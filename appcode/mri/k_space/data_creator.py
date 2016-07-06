@@ -12,11 +12,11 @@ from common.viewers.imshow import imshow
 
 # MAX_IM_VAL = 2.0**16 - 1
 
+
 class DataCreator:
     """
     DataCreator - Class of data creator object. Gets MriDataBase object and create example for training
     """
-
     def __init__(self, mri_data_base, output_path, axial_limits=np.array([10, 90])):
         """
         Constructor

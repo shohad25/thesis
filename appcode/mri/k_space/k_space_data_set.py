@@ -9,31 +9,34 @@ class KspaceDataSet:
     Kspace data base class
     """
 
-    def __init__(self, base_dir, file_names, stack_size=500):
+    def __init__(self, base_dir, file_names, stack_size=500, shuffle=True):
         """
         Constructor
         :param base_dir: basic dir after shuffle
         :param file_names: handle only specific file names
         :param stack_size: stack size of examples
+        :param shuffle: read data with shuffle or not
         :return:
         """
         self.path = base_dir
         self.file_names = file_names
-        self.train = DataSet(os.path.join(base_dir, "train"), file_names, stack_size)
-        self.test = DataSet(os.path.join(base_dir, "test"), file_names, stack_size)
+        self.train = DataSet(os.path.join(base_dir, "train"), file_names, stack_size, shuffle=shuffle)
+        self.test = DataSet(os.path.join(base_dir, "test"), file_names, stack_size, shuffle=shuffle)
         self.stack_size = stack_size
+
 
 class DataSet:
     """
     Train / Test Data Set
     """
 
-    def __init__(self, base_dir, file_names, stack_size):
+    def __init__(self, base_dir, file_names, stack_size, shuffle=True):
         """
         Constructor
         :param base_dir: basic dir after shuffle
         :param file_names: handle only specific file names
         :param stack_size: stack size of examples
+        :param shuffle: read data with shuffle or not
         :return:
         """
         self.path = base_dir
@@ -43,7 +46,7 @@ class DataSet:
         self.current = {name: None for name in file_names}  # Current data holder
         self.N_MAX = stack_size  # Number of examples in current
         self.files_obj = {}
-
+        self.shuffle = shuffle
         # Init all files objects, for reading
         self.init_files_obj()
 
@@ -81,9 +84,11 @@ class DataSet:
 
         # Get permutation
         perm = np.arange(data.shape[0])
-        np.random.shuffle(perm)
 
-        # Shuffle
+        if self.shuffle:
+            np.random.shuffle(perm)
+
+        # Re-ordering
         for file_name in self.file_names:
 
             # Reorder according to dimension
