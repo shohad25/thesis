@@ -15,6 +15,7 @@ import copy
 import os
 import datetime
 import time
+import argparse
 
 # k space data set
 base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
@@ -30,7 +31,7 @@ flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 flags.DEFINE_boolean('to_show', False, 'View data')
 tf.app.flags.DEFINE_string('train_dir',
-                           '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19/',
+                           '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19_unitest/',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
@@ -117,7 +118,7 @@ def load_graph():
     return x_input, y_input, model, loss, train_step, evaluation
 
 
-def train_model():
+def train_model(mode, checkpoint=None):
     
     # Import data
     data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
@@ -134,7 +135,10 @@ def train_model():
     init = tf.initialize_all_variables()
     writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
 
-    sess.run(init)
+    if mode == 'resume':
+        saver.restore(sess, checkpoint)
+    else:
+        sess.run(init)
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(FLAGS.max_steps):
 
@@ -155,6 +159,7 @@ def train_model():
                 print('TRAIN: Time: %s , Loss value at step %s: %s' % (datetime.datetime.now(), i, loss_value))
                 logfile.writelines('TRAIN: Time: %s , Loss value at step %s: %s\n' % (datetime.datetime.now(), i, loss_value))
                 logfile.flush()
+    logfile.close()
 
 
 def evaluate_checkpoint(tt='test', checkpoint=None):
@@ -194,18 +199,29 @@ def evaluate_checkpoint(tt='test', checkpoint=None):
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
 
-def main(mode, *args):
+def main(args):
 
-    if mode == 'train':
-        train_model()
-    elif mode == 'evaluate':
-        evaluate_checkpoint(tt=args[0], checkpoint=args[1])
+    if args.mode == 'train' or args.mode == 'resume':
+        train_model(args.mode, args.checkpoint)
+    elif args.mode == 'evaluate':
+        evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint)
     # elif mode == 'predict':
-    #     predict_checkpoint(tt=args[0], checkpoint=args[1], output=args[2])
+    #     predict_checkpoint(tt=args.tt, checkpoint=args.checkpoint, args.output_dir)
 
 if __name__ == '__main__':
-    checkpoint = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19/model.ckpt-309000'
-    tt = 'test'
-    main('evaluate', tt, checkpoint)
-    # tf.app.run(mode='evaluate')
-    # logfile.close()
+
+    parser = argparse.ArgumentParser(description='Main script for train super-resolution k-space.')
+    parser.add_argument('--mode', dest='mode', choices=['train', 'evaluate', 'predict', 'resume'], type=str, help='mode')
+    parser.add_argument('--tt', dest='tt', choices=['train', 'test'], type=str, help='train / test')
+    parser.add_argument('--checkpoint', dest='checkpoint', type=str, help='checkpoint full path')
+    parser.add_argument('--output_dir', dest='output_dir', type=str, help='Output dir for predict')
+    args = parser.parse_args()
+
+    if args.mode == 'evaluate':
+        assert args.tt and args.checkpoint, "Must have tt and checkpoint for evaluate"
+    elif args.mode == 'predict':
+        assert args.tt and args.checkpoint and args.output_dir , "Must have tt, checkpoint and output_dir for predict"
+    elif args.mode == 'resume':
+        assert args.checkpoint, "Must have checkpoint for resume"
+
+    main(args)
