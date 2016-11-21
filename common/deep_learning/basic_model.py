@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 class BasicModel:
     """
     Basic model on deep neural network
@@ -12,23 +13,19 @@ class BasicModel:
         :param dims_out: output dimensions
         :return:
         """
-        self.input = None
-        self.labels = None
-        self.dims_in = None
-        self.dims_out = None
-        self.model = None
-        self.loss = None
-        self.train = None
-        self.evaluation = None
+        self.input = input
+        self.labels = labels
+        self.dims_in = dims_in
+        self.dims_out = dims_out
 
     def model(self):
-        return self.model
+        return None
 
     def loss(self):
-        return self.loss
+        return None
 
     def train(self):
-        return self.train
+        return None
 
     def evaluation(self):
-        return self.evaluation
+        return None
