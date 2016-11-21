@@ -105,8 +105,8 @@ def main(_):
         # Calculate accuracy
         evaluation = network.evaluation(predict=model, labels=y_input)
 
-    # Create a saver.
-    saver = tf.train.Saver(tf.all_variables())
+    # Create a saver and keep all checkpoints
+    saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
 
     # Merge all the summaries and write them out to /tmp/mnist_logs
     merged = tf.merge_all_summaries()
