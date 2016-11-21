@@ -18,13 +18,14 @@ import time
 
 # k space data set
 base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
-file_names = ['k_space_real', 'k_space_real_gt']
+file_names = {'x': 'k_space_real', 'y': 'k_space_real_gt'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 1e-3, 'Initial learning rate.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
+flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 flags.DEFINE_boolean('to_show', False, 'View data')
@@ -53,20 +54,19 @@ def feed_data(data_set, x_input, y_input, tt='train', batch_size=10):
     else:
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
-    feed = {x_input: next_batch['k_space_real'], y_input: next_batch['k_space_real_gt']}
+    feed = {x_input: next_batch[file_names['x']], y_input: next_batch[file_names['y']]}
     return feed
 
 
-def run_evaluation(sess, feed, step, summary_op, eval_op, writer, saver):
+def run_evaluation(sess, feed, eval_op, step, summary_op, writer):
     """
     Run evaluation and save checkpoint
-    :param sess:
-    :param feed:
-    :param step:
+    :param sess: tf session
+    :param feed: dictionary feed
+    :param step: global step
     :param summary_op:
     :param eval_op:
     :param writer:
-    :param saver:
     :return:
     """
     result = sess.run([summary_op, eval_op], feed_dict=feed)
@@ -76,15 +76,24 @@ def run_evaluation(sess, feed, step, summary_op, eval_op, writer, saver):
     print('TEST:  Time: %s , Accuracy at step %s: %s' % (datetime.datetime.now(), step, acc))
     logfile.writelines('TEST: Time: %s , Accuracy at step %s: %s\n' % (datetime.datetime.now(), step, acc))
     logfile.flush()
+
+
+def save_checkpoint(sess, saver, step):
+    """
+    Dump checkpoint
+    :param sess: tf session
+    :param saver: saver op
+    :param step: global step
+    :return:
+    """
     checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
     saver.save(sess, checkpoint_path, global_step=step)
 
 
-def main(_):
-    
-    # Import data
-    data_set = KspaceDataSet(base_dir, file_names, stack_size=50)
-
+def load_graph():
+    """
+    :return:
+    """
     # Init inputs as placeholders
     x_input = tf.placeholder(tf.float32, shape=[None, 128, 256], name='x_input')
     y_input = tf.placeholder(tf.float32, shape=[None, 256, 256], name='y_input')
@@ -105,6 +114,16 @@ def main(_):
         # Calculate accuracy
         evaluation = network.evaluation(predict=model, labels=y_input)
 
+    return x_input, y_input, model, loss, train_step, evaluation
+
+
+def train_model():
+    
+    # Import data
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
+
+    x_input, y_input, model, loss, train_step, evaluation = load_graph()
+
     # Create a saver and keep all checkpoints
     saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
 
@@ -114,16 +133,18 @@ def main(_):
     sess = tf.Session()
     init = tf.initialize_all_variables()
     writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
-    sess.run(init)
 
+    sess.run(init)
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(FLAGS.max_steps):
 
-        if i % FLAGS.print_test == 0:  
+        if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
             feed = feed_data(data_set, x_input, y_input, tt='test', batch_size=FLAGS.mini_batch_size)
+
             if len(feed[x_input]):
-                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=evaluation, writer=writer, saver=saver)
+                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=evaluation, writer=writer)
+                save_checkpoint(sess=sess, saver=saver, step=i)
 
         else:
             # Training
@@ -135,6 +156,56 @@ def main(_):
                 logfile.writelines('TRAIN: Time: %s , Loss value at step %s: %s\n' % (datetime.datetime.now(), i, loss_value))
                 logfile.flush()
 
+
+def evaluate_checkpoint(tt='test', checkpoint=None):
+    """
+    Evaluate model on specific checkpoint
+    :param tt: 'train', 'test'
+    :param checkpoint: path to checkpoint
+    :return:
+    """
+    # Import data
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
+
+    x_input, y_input, model, loss, train_step, evaluation = load_graph()
+
+    # Create a saver and keep all checkpoints
+    saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
+    sess = tf.Session()
+    saver.restore(sess, checkpoint)
+
+    data_set_tt = getattr(data_set, tt)
+
+    all_acc = []
+    predict_counter = 0
+
+    print("Evaluate Model using checkpoint: %s, data=%s" % (checkpoint, tt))
+    while data_set_tt.epoch == 0:
+            # Running over all data until epoch > 0
+            feed = feed_data(data_set, x_input, y_input, tt=tt, batch_size=FLAGS.mini_batch_predict)
+            if len(feed[x_input]):
+                result = sess.run([evaluation], feed_dict=feed)
+                all_acc.append(np.array(result))
+                print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
+
+            predict_counter += FLAGS.mini_batch_predict
+            print("Done - " + str(predict_counter))
+
+    print("Total accuracy is: %f" % np.array(all_acc).mean())
+
+
+def main(mode, *args):
+
+    if mode == 'train':
+        train_model()
+    elif mode == 'evaluate':
+        evaluate_checkpoint(tt=args[0], checkpoint=args[1])
+    # elif mode == 'predict':
+    #     predict_checkpoint(tt=args[0], checkpoint=args[1], output=args[2])
+
 if __name__ == '__main__':
-    tf.app.run()
-    logfile.close()
+    checkpoint = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19/model.ckpt-309000'
+    tt = 'test'
+    main('evaluate', tt, checkpoint)
+    # tf.app.run(mode='evaluate')
+    # logfile.close()
