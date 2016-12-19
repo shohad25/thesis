@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
-
-sys.path.append("/home/ohadsh/work/python/thesis/")
+# sys.path.append("/home/ohadsh/work/python/thesis/")
 
 from appcode.mri.data.mri_data_base import MriDataBase
 from appcode.mri.k_space.utils import get_dummy_k_space_and_image
@@ -24,6 +23,9 @@ k_space_all, dummy_image_all = get_dummy_k_space_and_image(dat)
 
 k_space = k_space_all[:,:,50]
 dummy_image = dummy_image_all[:,:,50]
+
+import pdb
+pdb.set_trace()
 
 if to_show:
 

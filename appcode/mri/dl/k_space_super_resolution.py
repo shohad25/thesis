@@ -16,6 +16,7 @@ class KSpaceSuperResolution(BasicModel):
         :param dims_out:
         """
         BasicModel.__init__(self, input=input, labels=labels, dims_in=dims_in, dims_out=dims_out)
+        self.x_input_upscale = None
 
     def model(self):
         """
@@ -28,6 +29,8 @@ class KSpaceSuperResolution(BasicModel):
         # Apply image resize
         x_image_upscale = tf.image.resize_bilinear(x_image, np.array([self.dims_out[0],
                                           self.dims_out[1]]), align_corners=None, name='x_input_upscale')
+
+        self.x_input_upscale = x_image_upscale
         # Dump input image out
         tf.image_summary('x_upscale', x_image_upscale)
 

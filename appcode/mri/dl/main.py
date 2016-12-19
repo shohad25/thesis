@@ -19,25 +19,41 @@ import argparse
 
 # k space data set
 base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
-file_names = {'x': 'k_space_real', 'y': 'k_space_real_gt'}
+# file_names = {'x': 'k_space_real', 'y': 'k_space_real_gt'}
+file_names = {'x': 'k_space_imag', 'y': 'k_space_imag_gt'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-3, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-5, 'Initial learning rate.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
-flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 100, 'Print train frequency')
+flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
 flags.DEFINE_boolean('to_show', False, 'View data')
-tf.app.flags.DEFINE_string('train_dir',
-                           '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19_unitest/',
+
+flags.DEFINE_string('train_dir',
+                           '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19/',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+flags.DEFINE_string('x', 'k_space_real', 'X input')
+flags.DEFINE_string('y', 'k_space_real_gt', 'Y input')
+
+
+# flags.DEFINE_string('train_dir',
+#                            '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19_imag/',
+#                            """Directory where to write event logs """
+#                            """and checkpoint.""")
+
+# flags.DEFINE_string('x', 'k_space_imag', 'X input')
+# flags.DEFINE_string('y', 'k_space_imag_gt', 'Y input')
+
+
+file_names = {'x': FLAGS.x, 'y': FLAGS.y}
 
 DIMS_IN = np.array([128, 256, 1])
 DIMS_OUT = np.array([256, 256, 1])
-logfile = open(os.path.join(FLAGS.train_dir, 'results.log'), 'w')
+logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % datetime.datetime.now()), 'w')
 
 
 def feed_data(data_set, x_input, y_input, tt='train', batch_size=10):
@@ -115,7 +131,8 @@ def load_graph():
         # Calculate accuracy
         evaluation = network.evaluation(predict=model, labels=y_input)
 
-    return x_input, y_input, model, loss, train_step, evaluation
+    x_upscale = network.x_input_upscale
+    return x_input, y_input, model, loss, train_step, evaluation, x_upscale
 
 
 def train_model(mode, checkpoint=None):
@@ -123,7 +140,7 @@ def train_model(mode, checkpoint=None):
     # Import data
     data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
 
-    x_input, y_input, model, loss, train_step, evaluation = load_graph()
+    x_input, y_input, model, loss, train_step, evaluation, x_upscale = load_graph()
 
     # Create a saver and keep all checkpoints
     saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
@@ -162,40 +179,59 @@ def train_model(mode, checkpoint=None):
     logfile.close()
 
 
-def evaluate_checkpoint(tt='test', checkpoint=None):
+def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_file_interp=None):
     """
     Evaluate model on specific checkpoint
     :param tt: 'train', 'test'
     :param checkpoint: path to checkpoint
+    :param output_file: If not None, the output will write to this path,
     :return:
     """
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False)
 
-    x_input, y_input, model, loss, train_step, evaluation = load_graph()
+    x_input, y_input, model, loss, train_step, evaluation, x_upscale = load_graph()
 
     # Create a saver and keep all checkpoints
     saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
+    # saver = tf.train.import_meta_graph('%s.meta' % checkpoint)
     sess = tf.Session()
     saver.restore(sess, checkpoint)
+    # all_vars = tf.trainable_variables()
+    # for v in all_vars:
+        # print(v.name)
 
     data_set_tt = getattr(data_set, tt)
 
     all_acc = []
     predict_counter = 0
+    if output_file is not None:
+        f_out = open(output_file, 'w')
+    if output_file_interp is not None:
+        f_interp = open(output_file_interp, 'w')
 
     print("Evaluate Model using checkpoint: %s, data=%s" % (checkpoint, tt))
     while data_set_tt.epoch == 0:
             # Running over all data until epoch > 0
             feed = feed_data(data_set, x_input, y_input, tt=tt, batch_size=FLAGS.mini_batch_predict)
             if len(feed[x_input]):
-                result = sess.run([evaluation], feed_dict=feed)
+                predict, result, x_interp = sess.run([model, evaluation, x_upscale], feed_dict=feed)
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
+                if output_file is not None:
+                    f_out.write(predict.ravel())
+                    f_interp.write(x_interp.ravel())
 
             predict_counter += FLAGS.mini_batch_predict
             print("Done - " + str(predict_counter))
+            
+            # HACH
+            print("HACK")
+            break
 
+    if output_file is not None:
+        f_out.close()
+        f_interp.close()
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
 
@@ -204,7 +240,7 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         train_model(args.mode, args.checkpoint)
     elif args.mode == 'evaluate':
-        evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint)
+        evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint, output_file=args.output_file, output_file_interp=args.output_file_interp)
     # elif mode == 'predict':
     #     predict_checkpoint(tt=args.tt, checkpoint=args.checkpoint, args.output_dir)
 
@@ -214,13 +250,14 @@ if __name__ == '__main__':
     parser.add_argument('--mode', dest='mode', choices=['train', 'evaluate', 'predict', 'resume'], type=str, help='mode')
     parser.add_argument('--tt', dest='tt', choices=['train', 'test'], type=str, help='train / test')
     parser.add_argument('--checkpoint', dest='checkpoint', type=str, help='checkpoint full path')
-    parser.add_argument('--output_dir', dest='output_dir', type=str, help='Output dir for predict')
+    parser.add_argument('--output_file', dest='output_file', default=None, type=str, help='Output file for predict')
+    parser.add_argument('--output_file_interp', dest='output_file_interp', default=None, type=str, help='Output file for interpolation output')
     args = parser.parse_args()
 
     if args.mode == 'evaluate':
         assert args.tt and args.checkpoint, "Must have tt and checkpoint for evaluate"
-    elif args.mode == 'predict':
-        assert args.tt and args.checkpoint and args.output_dir , "Must have tt, checkpoint and output_dir for predict"
+    # elif args.mode == 'predict':
+    #     assert args.tt and args.checkpoint and args.output_dir , "Must have tt, checkpoint and output_dir for predict"
     elif args.mode == 'resume':
         assert args.checkpoint, "Must have checkpoint for resume"
 
