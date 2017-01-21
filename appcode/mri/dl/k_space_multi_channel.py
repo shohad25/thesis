@@ -8,7 +8,8 @@ class KSpaceSuperResolutionMC(BasicModel):
     """
     Represents k-space super resolution model
     """
-    def __init__(self, input=None, labels=None, dims_in=None, dims_out=None, batch_size=None, reg_w=0.0):
+    def __init__(self, input=None, labels=None, dims_in=None, dims_out=None, batch_size=None,
+                 reg_w=0.0, train_phase=None):
         """
         :param input:
         :param labels:
@@ -16,6 +17,7 @@ class KSpaceSuperResolutionMC(BasicModel):
         :param dims_out:
         """
         BasicModel.__init__(self, input=input, labels=labels, dims_in=dims_in, dims_out=dims_out)
+        self.train_phase = train_phase
         self.predict = None
         self.loss = None
         self.train_step = None
@@ -66,20 +68,24 @@ class KSpaceSuperResolutionMC(BasicModel):
         # Model convolutions
         out_dim = 8
         self.conv_1, reg_1 = ops.conv2d(self.input, output_dim=out_dim, k_h=5, k_w=5, d_h=1, d_w=1, name="conv_1")
-        self.relu_1 = tf.nn.relu(self.conv_1)
+        # self.debug = tf.contrib.layers.python.layers.utils.constant_value(self.input)
+        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, "bn1")
+        self.relu_1 = tf.nn.relu(self.conv_1_bn)
         self.regularization_values.append(reg_1)
 
         # deconv for get bigger image
         out_shape = [self.batch_size, self.dims_out[0], self.dims_out[1], 4]
-        self.conv_2, reg_2 = ops.conv2d_transpose(self.input, output_shape=out_shape,
+        self.conv_2, reg_2 = ops.conv2d_transpose(self.relu_1, output_shape=out_shape,
                                            k_h=3, k_w=3, d_h=2, d_w=1, name="conv_2")
+        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, "bn2")
         # self.conv_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="conv_2")
-        self.relu_2 = tf.nn.relu(self.conv_2)
+        self.relu_2 = tf.nn.relu(self.conv_2_bn)
         self.regularization_values.append(reg_2)
 
         out_dim = 2
         self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="conv_3")
-        self.relu_3 = tf.nn.relu(self.conv_3)
+        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, "bn3")
+        self.relu_3 = tf.nn.relu(self.conv_3_bn)
         self.regularization_values.append(reg_3)
 
         out_dim = 2

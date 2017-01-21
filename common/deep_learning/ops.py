@@ -102,4 +102,4 @@ def batch_norm(in_tensor, phase_train, name):
         normed:      batch-normalized maps
     """
     with tf.variable_scope(name) as scope:
-       return tf.contrib.layers.batch_norm(in_tensor,is_training=phase_train, scope=scope)
+       return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope)

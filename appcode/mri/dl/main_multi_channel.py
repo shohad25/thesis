@@ -26,15 +26,15 @@ file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-5, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-6, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 100, 'Print test frequency')
-flags.DEFINE_integer('print_train', 10, 'Print train frequency')
+flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
@@ -48,7 +48,7 @@ DIMS_OUT = np.array([256, 256, 2])
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % datetime.datetime.now()), 'w')
 
 
-def feed_data(data_set, x_input, y_input, tt='train', batch_size=10):
+def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10):
     """
     Feed data into dictionary
     :param data_set: data set object
@@ -60,7 +60,9 @@ def feed_data(data_set, x_input, y_input, tt='train', batch_size=10):
     """
     if tt == 'train':
         next_batch = copy.deepcopy(data_set.train.next_batch(batch_size))
+        t_phase = True
     else:
+        t_phase = False
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
     # Feed input as multi-channel: [0: real, 1: imaginary]
@@ -68,6 +70,7 @@ def feed_data(data_set, x_input, y_input, tt='train', batch_size=10):
                                      next_batch[file_names['x_i']][:, :, :, np.newaxis]), 3),
             y_input: np.concatenate((next_batch[file_names['y_r']][:, :, :, np.newaxis],
                                      next_batch[file_names['y_i']][:, :, :, np.newaxis]), 3),
+            train_phase: t_phase
             }
     return feed
 
@@ -111,9 +114,10 @@ def load_graph():
     # Init inputs as placeholders
     x_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_IN), name='x_input')
     y_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='y_input')
+    train_phase = tf.placeholder(tf.bool, name='phase_train')
     network = KSpaceSuperResolutionMC(input=x_input, labels=y_input, dims_in=DIMS_IN,
                                       dims_out=DIMS_OUT, batch_size=FLAGS.mini_batch_size,
-                                      reg_w=FLAGS.regularization_weight)
+                                      reg_w=FLAGS.regularization_weight, train_phase=train_phase)
     network.build(FLAGS)
     return network
 
@@ -144,7 +148,8 @@ def train_model(mode, checkpoint=None):
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
-            feed = feed_data(data_set, net.input, net.labels, tt='test', batch_size=FLAGS.mini_batch_size)
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+                             tt='test', batch_size=FLAGS.mini_batch_size)
 
             dbg = sess.run(net.debug, feed_dict=feed)
             print(dbg)
@@ -155,7 +160,8 @@ def train_model(mode, checkpoint=None):
 
         else:
             # Training
-            feed = feed_data(data_set, net.input, net.labels, tt='train', batch_size=FLAGS.mini_batch_size)
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+                             tt='train', batch_size=FLAGS.mini_batch_size)
             if len(feed[net.input]):
                 _, loss_value = sess.run([net.train_step, net.loss], feed_dict=feed)
             if i % FLAGS.print_train == 0:
@@ -200,7 +206,8 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     print("Evaluate Model using checkpoint: %s, data=%s" % (checkpoint, tt))
     while data_set_tt.epoch == 0:
             # Running over all data until epoch > 0
-            feed = feed_data(data_set, net.x_input, net.y_input, tt=tt, batch_size=FLAGS.mini_batch_predict)
+            feed = feed_data(data_set, net.x_input, net.y_input, net.train_phase,
+                             tt=tt, batch_size=FLAGS.mini_batch_predict)
             if len(feed[net.x_input]):
                 predict, result, x_interp = sess.run([net.model, net.evaluation, net.x_upscale], feed_dict=feed)
                 all_acc.append(np.array(result))

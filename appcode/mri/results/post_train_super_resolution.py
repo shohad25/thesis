@@ -52,7 +52,6 @@ def post_train_super_resolution(data_dir, predict_real, predict_imag, h=256, w=2
             k_space_amp_predict = np.log(1+np.sqrt(k_space_real_gt**2 + k_space_imag_gt**2))
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
-
             # Interpolation
             # k_space_real_gt_sub = interpolated_missing_samples(data["k_space_real"][i,:,:], dims_out=(w,h), method=method)
             # k_space_imag_gt_sub = interpolated_missing_samples(data["k_space_imag"][i,:,:], dims_out=(w,h), method=method)
