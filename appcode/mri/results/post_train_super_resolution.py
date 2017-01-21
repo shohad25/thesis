@@ -40,7 +40,7 @@ def post_train_super_resolution(data_dir, predict_real, predict_imag, h=256, w=2
         data = data_set_tt.next_batch(mini_batch, norm=False)
         real_p = f_predict_real.read(n=mini_batch, reshaped=True)
         imag_p = f_predict_imag.read(n=mini_batch, reshaped=True)
-
+        
         real_interp = f_interp_real.read(n=mini_batch, reshaped=True)
         imag_interp = f_interp_imag.read(n=mini_batch, reshaped=True)
 

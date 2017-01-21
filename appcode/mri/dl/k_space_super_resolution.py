@@ -6,7 +6,7 @@ import common.deep_learning.ops as ops
 
 class KSpaceSuperResolution(BasicModel):
     """
-    Represents k-space super resolution model
+    Represents k-space super resolution model for multi-channel input
     """
     def __init__(self, input=None, labels=None, dims_in=None, dims_out=None):
         """
