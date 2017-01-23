@@ -62,8 +62,8 @@ class KSpaceSuperResolutionMC(BasicModel):
         # Dump input image out
         input_real = tf.slice(self.input, begin=[0,0,0,0], size=[1,-1,-1,1], name='Slice_real_input')
         input_imag = tf.slice(self.input, begin=[0,0,0,1], size=[1,-1,-1,1], name='Slice_imag_input')
-        tf.image_summary('x_input_real', input_real)
-        tf.image_summary('x_input_imag', input_imag)
+        tf.summary.image('x_input_real', input_real)
+        tf.summary.image('x_input_imag', input_imag)
 
         # Model convolutions
         out_dim = 8
@@ -96,8 +96,8 @@ class KSpaceSuperResolutionMC(BasicModel):
         # Dump prediction out
         predict_real = tf.slice(predict, begin=[0,0,0,0], size=[1,-1,-1,1], name='Slice_real_input')
         predict_imag = tf.slice(predict, begin=[0,0,0,1], size=[1,-1,-1,1], name='Slice_imag_input')
-        tf.image_summary('predict_real', predict_real)
-        tf.image_summary('predict_imag', predict_imag)
+        tf.summary.image('predict_real', predict_real)
+        tf.summary.image('predict_imag', predict_imag)
 
         return predict  # Sum the reg term in the loss
 
@@ -110,13 +110,13 @@ class KSpaceSuperResolutionMC(BasicModel):
         :return:
         """
         s_loss = tf.reduce_mean(tf.square(tf.squeeze(predict) - labels), name='Loss')
-        _ = tf.scalar_summary('square-loss', s_loss)
+        _ = tf.summary.scalar('square-loss', s_loss)
 
         if reg is not None:
-            tf.scalar_summary('regularization', reg)
+            tf.summary.scalar('regularization', reg)
             # Add the regularization term to the loss.
             s_loss += self.reg_w * reg
-            tf.scalar_summary('square-loss + regularization', s_loss)
+            tf.summary.scalar('square-loss + regularization', s_loss)
 
         return s_loss
 
@@ -127,7 +127,7 @@ class KSpaceSuperResolutionMC(BasicModel):
         :return:
         """
         # Add a scalar summary for the snapshot loss.
-        # tf.scalar_summary(s_loss.op.name, s_loss)
+        # tf.summary.scalar(s_loss.op.name, s_loss)
         # Create Adam optimizer with the given learning rate.
         optimizer = tf.train.AdamOptimizer(learning_rate)
         # Create a variable to track the global step.
@@ -145,6 +145,6 @@ class KSpaceSuperResolutionMC(BasicModel):
         """
 
         evalu = tf.reduce_mean(tf.square(tf.squeeze(predict) - tf.squeeze(labels)))
-        # tf.scalar_summary("Evaluation", evalu)
+        # tf.summary.scalar("Evaluation", evalu)
         # Return the number of true entries.
         return evalu

@@ -18,28 +18,27 @@ import datetime
 import time
 import argparse
 
-# k space data set
-base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
-# file_names = {'x': 'k_space_real', 'y': 'k_space_real_gt'}
+# k space data set on loca SSD
+base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
 file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-6, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 100, 'Print train frequency')
+flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
 flags.DEFINE_string('train_dir',
-                           '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2017_01_20_multi_channel/',
+                           '/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_01_23/',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
@@ -75,7 +74,7 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
     return feed
 
 
-def run_evaluation(sess, feed, eval_op, step, summary_op, writer):
+def run_evaluation(sess, feed, eval_op, step, summary_op, writer, tt):
     """
     Run evaluation and save checkpoint
     :param sess: tf session
@@ -84,14 +83,15 @@ def run_evaluation(sess, feed, eval_op, step, summary_op, writer):
     :param summary_op:
     :param eval_op:
     :param writer:
+    :param tt: TRAIN / TEST
     :return:
     """
     result = sess.run([summary_op, eval_op], feed_dict=feed)
     summary_str = result[0]
     acc = result[1]
     writer.add_summary(summary_str, step)
-    print('TEST:  Time: %s , Accuracy at step %s: %s' % (datetime.datetime.now(), step, acc))
-    logfile.writelines('TEST: Time: %s , Accuracy at step %s: %s\n' % (datetime.datetime.now(), step, acc))
+    print('%s:  Time: %s , Accuracy at step %s: %s' % (tt, datetime.datetime.now(), step, acc))
+    logfile.writelines('%s: Time: %s , Accuracy at step %s: %s\n' % (tt, datetime.datetime.now(), step, acc))
     logfile.flush()
 
 
@@ -130,14 +130,15 @@ def train_model(mode, checkpoint=None):
     net = load_graph()
 
     # Create a saver and keep all checkpoints
-    saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
 
     # Merge all the summaries and write them out to /tmp/mnist_logs
-    merged = tf.merge_all_summaries()
+    merged = tf.summary.merge_all()
 
     sess = tf.Session()
-    init = tf.initialize_all_variables()
-    writer = tf.train.SummaryWriter(FLAGS.train_dir, sess.graph)
+    init = tf.global_variables_initializer()
+    writer = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'train'), sess.graph)
+    writer_test = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'test'), sess.graph)
 
     if mode == 'resume':
         saver.restore(sess, checkpoint)
@@ -155,7 +156,7 @@ def train_model(mode, checkpoint=None):
             print(dbg)
 
             if len(feed[net.input]):
-                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer)
+                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer_test, tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
 
         else:
@@ -165,9 +166,10 @@ def train_model(mode, checkpoint=None):
             if len(feed[net.input]):
                 _, loss_value = sess.run([net.train_step, net.loss], feed_dict=feed)
             if i % FLAGS.print_train == 0:
-                print('TRAIN: Time: %s , Loss value at step %s: %s' % (datetime.datetime.now(), i, loss_value))
-                logfile.writelines('TRAIN: Time: %s , Loss value at step %s: %s\n' % (datetime.datetime.now(), i, loss_value))
-                logfile.flush()
+                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer, tt='TRAIN')
+                # print('TRAIN: Time: %s , Loss value at step %s: %s' % (datetime.datetime.now(), i, loss_value))
+                # logfile.writelines('TRAIN: Time: %s , Loss value at step %s: %s\n' % (datetime.datetime.now(), i, loss_value))
+                # logfile.flush()
             # temp = 1
     logfile.close()
 
