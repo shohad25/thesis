@@ -10,13 +10,13 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.dl.k_space_multi_channel import KSpaceSuperResolutionMC
+from appcode.mri.dl.multi_channel.k_space_multi_channel import KSpaceSuperResolutionMC
 from common.deep_learning.helpers import *
 import copy
 import os
 import datetime
-import time
 import argparse
+import json
 
 # k space data set on loca SSD
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
@@ -32,19 +32,26 @@ flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
+flags.DEFINE_integer('print_test', 100, 'Print test frequency')
+flags.DEFINE_integer('print_train', 10, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
-flags.DEFINE_string('train_dir',
-                           '/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_01_23/',
-                           """Directory where to write event logs """
-                           """and checkpoint.""")
 
 DIMS_IN = np.array([128, 256, 2])
 DIMS_OUT = np.array([256, 256, 2])
-logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % datetime.datetime.now()), 'w')
+
+
+# flags.DEFINE_string('train_dir', args.train_dir,
+#                            """Directory where to write event logs """
+                           # """and checkpoint.""")
+flags.DEFINE_string('train_dir', "",
+                           """Directory where to write event logs """
+                           """and checkpoint.""")
+logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
+
+with open(os.path.join(base_dir, "factors.json"), 'r') as f:
+    data_factors = json.load(f)
 
 
 def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10):
@@ -64,11 +71,20 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
         t_phase = False
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
+    # Normalize data
+    mu_r = np.float32(data_factors['mean'][file_names['x_r']])
+    sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['x_r']]))
+    norm_r = lambda x: (x - mu_r) / sigma_r
+
+    mu_i = np.float32(data_factors['mean'][file_names['x_i']])
+    sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['x_i']]))
+    norm_i = lambda x: (x - mu_i) / sigma_i
+
     # Feed input as multi-channel: [0: real, 1: imaginary]
-    feed = {x_input: np.concatenate((next_batch[file_names['x_r']][:, :, :, np.newaxis],
-                                     next_batch[file_names['x_i']][:, :, :, np.newaxis]), 3),
-            y_input: np.concatenate((next_batch[file_names['y_r']][:, :, :, np.newaxis],
-                                     next_batch[file_names['y_i']][:, :, :, np.newaxis]), 3),
+    feed = {x_input: np.concatenate((norm_r(next_batch[file_names['x_r']][:, :, :, np.newaxis]),
+                                     norm_i(next_batch[file_names['x_i']][:, :, :, np.newaxis])), 3),
+            y_input: np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
+                                     norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3),
             train_phase: t_phase
             }
     return feed
@@ -141,7 +157,8 @@ def train_model(mode, checkpoint=None):
     writer_test = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'test'), sess.graph)
 
     if mode == 'resume':
-        saver.restore(sess, checkpoint)
+        # saver.restore(sess, checkpoint)
+        saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
     else:
         sess.run(init)
     # Train the model, and feed in test data and record summaries every 10 steps
@@ -152,9 +169,6 @@ def train_model(mode, checkpoint=None):
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt='test', batch_size=FLAGS.mini_batch_size)
 
-            dbg = sess.run(net.debug, feed_dict=feed)
-            print(dbg)
-
             if len(feed[net.input]):
                 run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer_test, tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
@@ -164,13 +178,16 @@ def train_model(mode, checkpoint=None):
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
             if len(feed[net.input]):
-                _, loss_value = sess.run([net.train_step, net.loss], feed_dict=feed)
+                # _, dbg, loss_value = sess.run([net.train_step, net.debug, net.loss], feed_dict=feed)
+                _,loss_value = sess.run([net.train_step, net.loss], feed_dict=feed)
             if i % FLAGS.print_train == 0:
                 run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer, tt='TRAIN')
-                # print('TRAIN: Time: %s , Loss value at step %s: %s' % (datetime.datetime.now(), i, loss_value))
-                # logfile.writelines('TRAIN: Time: %s , Loss value at step %s: %s\n' % (datetime.datetime.now(), i, loss_value))
-                # logfile.flush()
-            # temp = 1
+            # import pdb
+            # pdb.set_trace()
+            # print(dbg[0].mean(), dbg[1].mean())
+
+
+
     logfile.close()
 
 
@@ -188,13 +205,14 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     net = load_graph()
 
     # Create a saver and keep all checkpoints
-    saver = tf.train.Saver(tf.all_variables(), max_to_keep=None)
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
     # saver = tf.train.import_meta_graph('%s.meta' % checkpoint)
     sess = tf.Session()
-    saver.restore(sess, checkpoint)
+    # saver.restore(sess, checkpoint)
+    saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
     # all_vars = tf.trainable_variables()
     # for v in all_vars:
-        # print(v.name)
+    #     print(v.name)
 
     data_set_tt = getattr(data_set, tt)
 
@@ -208,10 +226,10 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     print("Evaluate Model using checkpoint: %s, data=%s" % (checkpoint, tt))
     while data_set_tt.epoch == 0:
             # Running over all data until epoch > 0
-            feed = feed_data(data_set, net.x_input, net.y_input, net.train_phase,
-                             tt=tt, batch_size=FLAGS.mini_batch_predict)
-            if len(feed[net.x_input]):
-                predict, result, x_interp = sess.run([net.model, net.evaluation, net.x_upscale], feed_dict=feed)
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+                             tt='train', batch_size=FLAGS.mini_batch_size)
+            if len(feed[net.input]):
+                predict, result, x_interp = sess.run([net.predict, net.evaluation, net.x_input_upscale], feed_dict=feed)
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:
@@ -245,6 +263,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Main script for train super-resolution k-space.')
     parser.add_argument('--mode', dest='mode', choices=['train', 'evaluate', 'predict', 'resume'], type=str, help='mode')
     parser.add_argument('--tt', dest='tt', choices=['train', 'test'], type=str, help='train / test')
+    parser.add_argument('--train_dir', dest='train_dir', default='', type=str, help='training directory')
     parser.add_argument('--checkpoint', dest='checkpoint', type=str, help='checkpoint full path')
     parser.add_argument('--output_file', dest='output_file', default=None, type=str, help='Output file for predict')
     parser.add_argument('--output_file_interp', dest='output_file_interp', default=None, type=str, help='Output file for interpolation output')

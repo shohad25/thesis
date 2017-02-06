@@ -89,7 +89,7 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
             return tf.matmul(input_, matrix) + bias
 
 
-def batch_norm(in_tensor, phase_train, name):
+def batch_norm(in_tensor, phase_train, name, decay=0.99):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
@@ -98,8 +98,9 @@ def batch_norm(in_tensor, phase_train, name):
         n_out:       integer, depth of input maps
         phase_train: boolean tf.Varialbe, true indicates training phase
         scope:       string, variable scope
+        decay:       decay factor
     Return:
         normed:      batch-normalized maps
     """
     with tf.variable_scope(name) as scope:
-       return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, scope=scope)
+        return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, decay=decay, scope=scope)

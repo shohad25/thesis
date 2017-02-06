@@ -3,6 +3,7 @@ import numpy as np
 from common.deep_learning.basic_model import BasicModel
 import common.deep_learning.ops as ops
 
+from tensorflow.python.ops import control_flow_ops
 
 class KSpaceSuperResolutionMC(BasicModel):
     """
@@ -22,6 +23,7 @@ class KSpaceSuperResolutionMC(BasicModel):
         self.loss = None
         self.train_step = None
         self.evaluation = None
+        self.update_ops = None
         self.x_input_upscale = None
         self.debug = tf.shape(input)
         self.batch_size = batch_size
@@ -42,10 +44,7 @@ class KSpaceSuperResolutionMC(BasicModel):
         with tf.name_scope('loss'):
             self.loss = self.__loss__(predict=self.predict, labels=self.labels, reg=self.regularization_sum)
 
-        with tf.name_scope('train'):
-            # Training evaluation
-            # Using Adam solver with cross entropy minimize
-            self.train_step = self.__training__(s_loss=self.loss, learning_rate=FLAGS.learning_rate)
+        self.train_step = self.__training__(s_loss=self.loss, learning_rate=FLAGS.learning_rate)
 
         with tf.name_scope('evaluation'):
             # Calculate accuracy
@@ -68,23 +67,21 @@ class KSpaceSuperResolutionMC(BasicModel):
         # Model convolutions
         out_dim = 8
         self.conv_1, reg_1 = ops.conv2d(self.input, output_dim=out_dim, k_h=5, k_w=5, d_h=1, d_w=1, name="conv_1")
-        # self.debug = tf.contrib.layers.python.layers.utils.constant_value(self.input)
-        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, "bn1")
+        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="bn1")
         self.relu_1 = tf.nn.relu(self.conv_1_bn)
         self.regularization_values.append(reg_1)
 
         # deconv for get bigger image
         out_shape = [self.batch_size, self.dims_out[0], self.dims_out[1], 4]
         self.conv_2, reg_2 = ops.conv2d_transpose(self.relu_1, output_shape=out_shape,
-                                           k_h=3, k_w=3, d_h=2, d_w=1, name="conv_2")
-        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, "bn2")
-        # self.conv_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="conv_2")
+                                                   k_h=3, k_w=3, d_h=2, d_w=1, name="conv_2")
+        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="bn2")
         self.relu_2 = tf.nn.relu(self.conv_2_bn)
         self.regularization_values.append(reg_2)
 
         out_dim = 2
         self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="conv_3")
-        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, "bn3")
+        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="bn3")
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
         self.regularization_values.append(reg_3)
 
@@ -93,6 +90,7 @@ class KSpaceSuperResolutionMC(BasicModel):
         self.regularization_values.append(reg_4)
 
         predict = tf.reshape(self.conv_4, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='predict')
+
         # Dump prediction out
         predict_real = tf.slice(predict, begin=[0,0,0,0], size=[1,-1,-1,1], name='Slice_real_input')
         predict_imag = tf.slice(predict, begin=[0,0,0,1], size=[1,-1,-1,1], name='Slice_imag_input')
@@ -125,16 +123,27 @@ class KSpaceSuperResolutionMC(BasicModel):
         :param s_loss:
         :param learning_rate:
         :return:
+
         """
-        # Add a scalar summary for the snapshot loss.
-        # tf.summary.scalar(s_loss.op.name, s_loss)
         # Create Adam optimizer with the given learning rate.
         optimizer = tf.train.AdamOptimizer(learning_rate)
         # Create a variable to track the global step.
         global_step = tf.Variable(0, name='global_step', trainable=False)
         # Use the optimizer to apply the gradients that minimize the loss
         # (and also increment the global step counter) as a single training step.
-        train_op = optimizer.minimize(s_loss, global_step=global_step)
+        grad = optimizer.compute_gradients(s_loss)
+
+        self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+        # Ensures that we execute the update_ops before performing the train_step
+        with tf.control_dependencies(self.update_ops):
+            train_op = optimizer.apply_gradients(grad, global_step=global_step)
+            # train_op = optimizer.minimize(s_loss, global_step=global_step)
+
+        # var_list = [tf.global_variables()[3], tf.global_variables()[4]]
+        # var_list = [tf.global_variables()[8], tf.global_variables()[9]]
+        # self.debug = [var_list[0], var_list[1]]
+
         return train_op
 
     def __evaluation__(self, predict, labels):
