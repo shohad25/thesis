@@ -1,0 +1,37 @@
+TODO:
+
+GAN:
+  ☐ Develop GAN
+
+Siames:
+  ☐ Develop Siames model, with interp + deconv
+
+MultiChannel:
+ ☐ Compare to single network, save figures for later
+ ☐ Try the model with interpolation 
+
+TensorFlow general:
+  ☐ How to use specific checkpoint (now it's the latest)
+
+Data:
+ ☐ What is the best representation to imaeg & kspace, image - int16, k_space - currently float64 so real = image = float32
+ ☐ Crop image to 4 smaller images, 64x64, better for run-time - What to do in the overlaps?
+ ☐ Work with other data bases
+ ☐ Amplitude & Phase data
+
+viewers:
+  ☐ Create generic viewer
+  ☐ Improve viewer for trainin examples
+
+fileHandler:
+  ☐ Handle the issue with the reshape blob
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+Archive:
+ ✔ 1. Develop shuffle script @done (17-02-10 09:43)
+ ✔ k_space values are very small, but int is > 0 -> So I have normalized the data, see /media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/factors.json @done (17-02-10 09:42) @project(Data)
+ ✔ 1. Create mnist-like data base with get_batch(50) method. @done (17-02-10 09:42)
+ ✔ 4. Develop network code with tensorBoard @done (17-02-10 09:40) @project(TODO)
+ ✔ 3. Create examples using random subsampling @done (17-02-10 09:40) @project(TODO)
+ ✔ 2. Convert data-base to like-mnist style, for easy reading with tensorflow @done (17-02-10 09:40) @project(TODO)
+ ✔ 1. Interface with nibabel (niftty lib) for easy reading data base @done (17-02-10 09:40) @project(TODO)
