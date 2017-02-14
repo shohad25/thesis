@@ -1,5 +1,7 @@
 #!/home/ohadsh/Tools/anaconda/bin/python
 import numpy as np
+import json
+import os
 import matplotlib.pyplot as plt
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.utils import get_image_from_kspace, interpolated_missing_samples, zero_padding
@@ -9,25 +11,37 @@ file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt', 'mask', 'k_space
 mini_batch = 50
 
 
-def post_train_super_resolution(data_dir, predict_real, predict_imag, h=256, w=256, tt='test', show=False):
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
+with open(os.path.join(base_dir, "factors.json"), 'r') as f:
+    data_factors = json.load(f)
+
+
+def post_train_super_resolution_mc(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
     """
     This function read predictions (dictionary) and compare it to the data
     :param data_dir: data main directory
-    :param predict_real: predict path for real values
-    :param predict_imag: predict path for imaginary valeus
+    :param predict_paths: predict path MC
     :param h: height
     :param w: width
     :param tt: train or test
     :param show: show flag
     :return:
     """
-    method = 'bilinear'
-    predict_info = {'width': w, 'height': h, 'channels': 1, 'dtype': 'float32'}
-    f_predict_real = FileHandler(path=predict_real[0], info=predict_info, read_or_write='read', name='predict_real')
-    f_predict_imag = FileHandler(path=predict_imag[0], info=predict_info, read_or_write='read', name='predict_imag')
 
-    f_interp_real = FileHandler(path=predict_real[1], info=predict_info, read_or_write='read', name='interp_real')
-    f_interp_imag = FileHandler(path=predict_imag[1], info=predict_info, read_or_write='read', name='interp_imag')
+    mu_r = np.float32(data_factors['mean']['k_space_real'])
+    sigma_r = np.sqrt(np.float32(data_factors['variance']['k_space_real']))
+    norm_r = lambda x: (x * sigma_r) + mu_r
+
+    mu_i = np.float32(data_factors['mean']['k_space_imag'])
+    sigma_i = np.sqrt(np.float32(data_factors['variance']['k_space_imag']))
+    norm_i = lambda x: (x * sigma_i) + mu_i
+
+
+    method = 'bilinear'
+    predict_info = {'width': w, 'height': h, 'channels': 2, 'dtype': 'float32'}
+    f_predict_mc = FileHandler(path=predict_paths[0], info=predict_info, read_or_write='read', name='predict_mc')
+
+    f_interp_mc = FileHandler(path=predict_paths[1], info=predict_info, read_or_write='read', name='interp_mc')
 
     data_set = KspaceDataSet(data_dir, file_names, stack_size=50, shuffle=False)
 
@@ -38,11 +52,12 @@ def post_train_super_resolution(data_dir, predict_real, predict_imag, h=256, w=2
     while data_set_tt.epoch == 0:
         # Running over all data until epoch > 0
         data = data_set_tt.next_batch(mini_batch, norm=False)
-        real_p = f_predict_real.read(n=mini_batch, reshaped=True)
-        imag_p = f_predict_imag.read(n=mini_batch, reshaped=True)
-        
-        real_interp = f_interp_real.read(n=mini_batch, reshaped=True)
-        imag_interp = f_interp_imag.read(n=mini_batch, reshaped=True)
+        mc_p = f_predict_mc.read(n=mini_batch, reshaped=True)
+        mc_interp = f_interp_mc.read(n=mini_batch, reshaped=True)
+        real_p = norm_r(mc_p[:,0,:,:])
+        imag_p = norm_i(mc_p[:,1,:,:])
+        real_interp = norm_r(mc_interp[:,0,:,:])
+        imag_interp = norm_i(mc_interp[:,1,:,:])
 
         for i in range(0, real_p.shape[0]):
 
@@ -94,12 +109,14 @@ def post_train_super_resolution(data_dir, predict_real, predict_imag, h=256, w=2
 
 if __name__ == '__main__':
     data_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
-    predict_real = ['/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19/000000.predict.bin', 
-                    '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19/000000.interp.bin']
-    predict_imag = ['/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19_imag/000000.predict.bin',
-                    '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_11_19_imag/000000.interp.bin']
+    # predict_paths = ['/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_01_23_temp/000000.predict_test.bin',
+    #                 '/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_01_23_temp/000000.interp_test.bin']
+
+    predict_paths = ['/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_02_14_fft/000000.predict.bin',
+                    '/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_02_14_fft/000000.interp.bin']
+
     w = 256
     h = 256
     tt = 'train'
     show = False
-    post_train_super_resolution(data_dir, predict_real, predict_imag, h, w, tt, show)
+    post_train_super_resolution_mc(data_dir, predict_paths, h, w, tt, show)

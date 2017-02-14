@@ -10,40 +10,38 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.dl.gan.k_space_gan import KSpaceSuperResolutionGAN
+from appcode.mri.dl.multi_channel_fft.k_space_multi_channel_fft import KSpaceSuperResolutionMC
 from common.deep_learning.helpers import *
 import copy
 import os
 import datetime
 import argparse
 import json
-from collections import defaultdict
+from numpy.fft import fftshift, ifftshift
 
 # k space data set on loca SSD
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt', 'mri':'image_gt'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-7, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
-flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
-flags.DEFINE_float('gen_loss_adversarial', 1e-3, 'Generative loss, adversarial weight.')
-
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 100, 'Print train frequency')
+flags.DEFINE_integer('print_test', 100, 'Print test frequency')
+flags.DEFINE_integer('print_train', 10, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
 
 DIMS_IN = np.array([128, 256, 2])
 DIMS_OUT = np.array([256, 256, 2])
+IMG_MRI = np.array([256, 256, 1])
 
 
 # flags.DEFINE_string('train_dir', args.train_dir,
@@ -58,7 +56,7 @@ with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
 
 
-def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10):
+def feed_data(data_set, x_input, y_input, train_phase, mri, tt='train', batch_size=10):
     """
     Feed data into dictionary
     :param data_set: data set object
@@ -84,39 +82,35 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
     sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['x_i']]))
     norm_i = lambda x: (x - mu_i) / sigma_i
 
-    y_in = np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3)
-    # d_in = y_in.copy()
     # Feed input as multi-channel: [0: real, 1: imaginary]
     feed = {x_input: np.concatenate((norm_r(next_batch[file_names['x_r']][:, :, :, np.newaxis]),
                                      norm_i(next_batch[file_names['x_i']][:, :, :, np.newaxis])), 3),
-            y_input: y_in,
-            train_phase: t_phase
+            y_input: np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
+                                     norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3),
+            train_phase: t_phase,
+            mri: fftshift(next_batch[file_names['mri']][:,:,:,np.newaxis])
             }
     return feed
 
 
-def run_evaluation(sess, feed, net, step, writer, tt):
+def run_evaluation(sess, feed, eval_op, step, summary_op, writer, tt):
     """
-
-    :param sess:
-    :param feed:
-    :param net:
-    :param step:
+    Run evaluation and save checkpoint
+    :param sess: tf session
+    :param feed: dictionary feed
+    :param step: global step
+    :param summary_op:
+    :param eval_op:
     :param writer:
-    :param tt:
+    :param tt: TRAIN / TEST
     :return:
     """
-    m_op_g = tf.summary.merge_all(key='G')
-    m_op_d = tf.summary.merge_all(key='D')
-
-    r_g, r_d, loss_d_fake, loss_d_real, loss_d, loss_g, l2_norm = sess.run([m_op_g, m_op_d, net.d_loss_fake, net.d_loss_real,
-                                                                   net.d_loss, net.g_loss, net.evaluation], feed_dict=feed)
-    writer['G'].add_summary(r_g, step)
-    writer['D'].add_summary(r_d, step)
-
-    print('%s:  Time: %s , Loss at step %s: D: %s, G: %s, L2: %s' % (tt, datetime.datetime.now(), step, loss_d, loss_g, l2_norm))
-    logfile.writelines('%s: Time: %s , Accuracy at step %s: D: %s, G: %s, L2: %s\n' % (tt, datetime.datetime.now(), step, loss_d, loss_g, l2_norm))
+    result = sess.run([summary_op, eval_op], feed_dict=feed)
+    summary_str = result[0]
+    acc = result[1]
+    writer.add_summary(summary_str, step)
+    print('%s:  Time: %s , Accuracy at step %s: %s' % (tt, datetime.datetime.now(), step, acc))
+    logfile.writelines('%s: Time: %s , Accuracy at step %s: %s\n' % (tt, datetime.datetime.now(), step, acc))
     logfile.flush()
 
 
@@ -139,11 +133,12 @@ def load_graph():
     # Init inputs as placeholders
     x_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_IN), name='x_input')
     y_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='y_input')
-    # d_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='d_input')
+    mri = tf.placeholder(tf.float32, shape=[None] + list(IMG_MRI), name='mri')
     train_phase = tf.placeholder(tf.bool, name='phase_train')
-    network = KSpaceSuperResolutionGAN(input=x_input, labels=y_input, dims_in=DIMS_IN,
+    network = KSpaceSuperResolutionMC(input=x_input, labels=y_input, dims_in=DIMS_IN,
                                       dims_out=DIMS_OUT, batch_size=FLAGS.mini_batch_size,
-                                      reg_w=FLAGS.regularization_weight, train_phase=train_phase)
+                                      reg_w=FLAGS.regularization_weight, train_phase=train_phase, factors=data_factors,
+                                      mri=mri)
     network.build(FLAGS)
     return network
 
@@ -163,53 +158,35 @@ def train_model(mode, checkpoint=None):
 
     sess = tf.Session()
     init = tf.global_variables_initializer()
-
-    writer = defaultdict(dict)
-    writer['train']['D'] = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'train', 'D'), sess.graph)
-    writer['train']['G'] = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'train', 'G'), sess.graph)
-
-    writer['test']['D'] = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'test', 'D'), sess.graph)
-    writer['test']['G'] = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'test', 'G'), sess.graph)
+    writer = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'train'), sess.graph)
+    writer_test = tf.summary.FileWriter(os.path.join(FLAGS.train_dir, 'test'), sess.graph)
 
     if mode == 'resume':
-        saver.restore(sess, checkpoint)
-        # saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
+        # saver.restore(sess, checkpoint)
+        saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
     else:
         sess.run(init)
-
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(FLAGS.max_steps):
 
-        #
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
-            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase, net.mri,
                              tt='test', batch_size=FLAGS.mini_batch_size)
 
             if len(feed[net.input]):
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
+                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer_test, tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
 
         else:
             # Training
-            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase,net.mri,
                              tt='train', batch_size=FLAGS.mini_batch_size)
-            # sess.run([merged], feed_dict=feed)
             if len(feed[net.input]):
-
-                # Update D network
-                _, d_loss_fake, d_loss_real, d_loss = \
-                    sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-
-                # Update G network
-                _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
-
-                # Run g_optim twice to make sure that d_loss does not go to zero
-                # (different from paper)
-                # _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
-
+                # _, dbg, loss_value = sess.run([net.train_step, net.debug, net.loss], feed_dict=feed)
+                _,loss_value = sess.run([net.train_step, net.loss], feed_dict=feed)
             if i % FLAGS.print_train == 0:
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
+                run_evaluation(sess, feed, step=i, summary_op=merged, eval_op=net.evaluation, writer=writer, tt='TRAIN')
             # import pdb
             # pdb.set_trace()
             # print(dbg[0].mean(), dbg[1].mean())
@@ -234,8 +211,11 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
     # saver = tf.train.import_meta_graph('%s.meta' % checkpoint)
     sess = tf.Session()
-    saver.restore(sess, checkpoint)
-    # saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
+    # saver.restore(sess, checkpoint)
+    saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
+    # all_vars = tf.trainable_variables()
+    # for v in all_vars:
+    #     print(v.name)
 
     data_set_tt = getattr(data_set, tt)
 
@@ -249,10 +229,10 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     print("Evaluate Model using checkpoint: %s, data=%s" % (checkpoint, tt))
     while data_set_tt.epoch == 0:
             # Running over all data until epoch > 0
-            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase,net.mri,
                              tt='train', batch_size=FLAGS.mini_batch_size)
             if len(feed[net.input]):
-                predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
+                predict, result, x_interp = sess.run([net.predict_kspace, net.evaluation, net.x_input_upscale], feed_dict=feed)
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:

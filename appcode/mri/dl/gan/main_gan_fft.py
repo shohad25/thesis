@@ -10,7 +10,7 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.dl.gan.k_space_gan import KSpaceSuperResolutionGAN
+from appcode.mri.dl.gan.k_space_gan_fft import KSpaceSuperResolutionGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -26,7 +26,7 @@ file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-7, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-5, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
@@ -36,8 +36,8 @@ flags.DEFINE_float('gen_loss_adversarial', 1e-3, 'Generative loss, adversarial w
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 100, 'Print train frequency')
+flags.DEFINE_integer('print_test', 100, 'Print test frequency')
+flags.DEFINE_integer('print_train', 10, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
@@ -56,6 +56,8 @@ logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.dat
 
 with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
+
+FLAGS.data_factors = data_factors
 
 
 def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10):
@@ -139,12 +141,10 @@ def load_graph():
     # Init inputs as placeholders
     x_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_IN), name='x_input')
     y_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='y_input')
-    # d_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='d_input')
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     network = KSpaceSuperResolutionGAN(input=x_input, labels=y_input, dims_in=DIMS_IN,
-                                      dims_out=DIMS_OUT, batch_size=FLAGS.mini_batch_size,
-                                      reg_w=FLAGS.regularization_weight, train_phase=train_phase)
-    network.build(FLAGS)
+                                      dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase)
+    network.build()
     return network
 
 
