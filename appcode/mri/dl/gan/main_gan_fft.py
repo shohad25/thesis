@@ -26,18 +26,18 @@ file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-5, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
-flags.DEFINE_float('gen_loss_adversarial', 1e-3, 'Generative loss, adversarial weight.')
+flags.DEFINE_float('gen_loss_adversarial', 1e-2, 'Generative loss, adversarial weight.')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 100, 'Print test frequency')
-flags.DEFINE_integer('print_train', 10, 'Print train frequency')
+flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
@@ -206,7 +206,7 @@ def train_model(mode, checkpoint=None):
 
                 # Run g_optim twice to make sure that d_loss does not go to zero
                 # (different from paper)
-                # _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
+                _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')

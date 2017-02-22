@@ -59,8 +59,9 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         with tf.name_scope('D_'):
             self.predict_d, self.predict_d_logits = self.__D__(self.input_d, input_type="Real")
-            tf.get_variable_scope().reuse_variables()
-            self.predict_d_for_g, self.predict_d_logits_for_g = self.__D__(self.predict_g, input_type="Gen")
+            with tf.variable_scope(tf.get_variable_scope(), reuse=True):
+            # tf.get_variable_scope().reuse_variables()
+                self.predict_d_for_g, self.predict_d_logits_for_g = self.__D__(self.predict_g, input_type="Gen")
 
             if len(self.regularization_values_d) > 0:
                 self.regularization_sum_d = sum(self.regularization_values_d)
@@ -197,12 +198,12 @@ class KSpaceSuperResolutionGAN(BasicModel):
         # regularization ?
 
         self.d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(self.predict_d_logits,
+            tf.nn.sigmoid_cross_entropy_with_logits(None, self.predict_d_logits,
                                                     tf.ones_like(self.predict_d)))
         tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
 
         self.d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(self.predict_d_logits_for_g,
+            tf.nn.sigmoid_cross_entropy_with_logits(None, self.predict_d_logits_for_g,
                                                     tf.zeros_like(self.predict_d_for_g)))
         tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
@@ -217,7 +218,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         # Generative loss
         g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(self.predict_d_logits_for_g,
+            tf.nn.sigmoid_cross_entropy_with_logits(None, self.predict_d_logits_for_g,
                                                     tf.ones_like(self.predict_d_for_g)))
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
@@ -230,7 +231,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
         if len(self.regularization_values) > 0:
             reg_loss_g = self.reg_w * tf.reduce_sum(self.regularization_values)
             self.g_loss += reg_loss_g
-            tf.summary.scalar('g_loss_plus_context_plus_reg', self.d_loss, collections='G')
+            tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G')
             tf.summary.scalar('g_loss_reg_only', reg_loss_g, collections='D')
 
         tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G')
@@ -297,5 +298,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
         complex_k_space_label = tf.complex(real=(tf.squeeze(real) - mu_r) / sigma_r,
                                      imag=(tf.squeeze(imag) - mu_i) / sigma_i, name=name+"_complex_k_space")
         rec_image_complex = tf.expand_dims(tf.ifft2d(complex_k_space_label), axis=3)
-        rec_image = tf.reshape(tf.complex_abs(rec_image_complex), shape=[-1, 256, 256, 1])
+        # import pdb
+        # pdb.set_trace()
+        rec_image = tf.reshape(tf.abs(rec_image_complex), shape=[-1, 256, 256, 1])
         return rec_image

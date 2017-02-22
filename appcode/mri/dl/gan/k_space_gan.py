@@ -55,20 +55,18 @@ class KSpaceSuperResolutionGAN(BasicModel):
         """
         with tf.name_scope('G_'):
             self.predict_g = self.__G__()
-            if len(self.regularization_values) > 0:
-                self.regularization_sum = sum(self.regularization_values)
 
         with tf.name_scope('D_'):
-            self.predict_d, self.predict_d_logits = self.__D__(self.input_d)
+            self.predict_d, self.predict_d_logits = self.__D__(self.input_d, input_type="Real")
             tf.get_variable_scope().reuse_variables()
-            self.predict_d_for_g, self.predict_d_logits_for_g = self.__D__(self.predict_g)
+            self.predict_d_for_g, self.predict_d_logits_for_g = self.__D__(self.predict_g, input_type="Gen")
 
             if len(self.regularization_values_d) > 0:
                 self.regularization_sum_d = sum(self.regularization_values_d)
 
         with tf.name_scope('loss'):
             # self.loss_g = self.__loss_g__(predict=self.predict_g, self.labels, reg=self.regularization_sum)
-            self.__loss__()
+            self.__loss__(FLAGS)
 
         with tf.name_scope('training'):
             self.train_op_d, self.train_op_g = self.__training__(learning_rate=FLAGS.learning_rate)
@@ -127,43 +125,47 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         return predict  # Sum the reg term in the loss
 
-    def __D__(self, input_d):
+    def __D__(self, input_d, input_type):
         """
         Define the discriminator
         """
         # Dump input image out
         input_real = tf.slice(input_d, begin=[0,0,0,0], size=[1,-1,-1,1], name='D_Slice_real_input')
         input_imag = tf.slice(input_d, begin=[0,0,0,1], size=[1,-1,-1,1], name='D_Slice_imag_input')
-        tf.summary.image('D_x_input_real', input_real, collections='D')
-        tf.summary.image('D_x_input_imag', input_imag, collections='D')
+        tf.summary.image('D_x_input_real' + input_type, input_real, collections='D')
+        tf.summary.image('D_x_input_imag' + input_type, input_imag, collections='D')
 
         # Model convolutions
         out_dim = 8  # 128x128
         self.conv_1_d, reg_1_d = ops.conv2d(input_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_1")
         self.pool_1_d = tf.nn.max_pool(self.conv_1_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name="D_pool_1")
         self.conv_1_bn_d = ops.batch_norm(self.pool_1_d, self.train_phase, decay=0.98, name="D_bn1")
-        self.relu_1_d = tf.nn.relu(self.conv_1_bn_d)
+        # self.relu_1_d = tf.nn.relu(self.conv_1_bn_d)
+        self.relu_1_d = ops.lrelu(self.conv_1_bn_d)
         self.regularization_values_d.append(reg_1_d)
 
         out_dim = 16  # 64x64
         self.conv_2_d, reg_2_d = ops.conv2d(self.relu_1_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_2")
         self.pool_2_d = tf.nn.max_pool(self.conv_2_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name="D_pool_2")
         self.conv_2_bn_d = ops.batch_norm(self.pool_2_d, self.train_phase, decay=0.98, name="D_bn2")
-        self.relu_2_d = tf.nn.relu(self.conv_2_bn_d)
+        # self.relu_2_d = tf.nn.relu(self.conv_2_bn_d)
+        self.relu_2_d = ops.lrelu(self.conv_2_bn_d)
         self.regularization_values_d.append(reg_2_d)
 
         out_dim = 32  # 32x32
         self.conv_3_d, reg_3_d = ops.conv2d(self.relu_2_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_3")
         self.pool_3_d = tf.nn.max_pool(self.conv_3_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name="D_pool_3")
         self.conv_3_bn_d = ops.batch_norm(self.pool_3_d, self.train_phase, decay=0.98, name="D_bn3")
-        self.relu_3_d = tf.nn.relu(self.conv_3_bn_d)
+        # self.relu_3_d = tf.nn.relu(self.conv_3_bn_d)
+        self.relu_3_d = ops.lrelu(self.conv_3_bn_d)
         self.regularization_values_d.append(reg_3_d)
 
         out_dim = 16  # 16x16
         self.conv_4_d, reg_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_4")
         self.pool_4_d = tf.nn.max_pool(self.conv_4_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name="D_pool_4")
         self.conv_4_bn_d = ops.batch_norm(self.pool_4_d, self.train_phase, decay=0.98, name="D_bn4")
-        self.relu_4_d = tf.nn.relu(self.conv_4_bn_d)
+        # self.relu_4_d = tf.nn.relu(self.conv_4_bn_d)
+        self.relu_4_d = ops.lrelu(self.conv_4_bn_d)
         self.regularization_values_d.append(reg_4_d)
 
         out_dim = 1
@@ -173,7 +175,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         return tf.nn.sigmoid(predict_d), predict_d
 
-    def __loss__(self):
+    def __loss__(self, FLAGS):
         """
         Calculate loss
         :return:
@@ -193,10 +195,29 @@ class KSpaceSuperResolutionGAN(BasicModel):
         self.d_loss = self.d_loss_real + self.d_loss_fake
         tf.summary.scalar('d_loss', self.d_loss, collections='D')
 
-        self.g_loss = tf.reduce_mean(
+        if len(self.regularization_values_d) > 0:
+            reg_loss_d = self.reg_w * tf.reduce_sum(self.regularization_values_d)
+            self.d_loss += reg_loss_d
+            tf.summary.scalar('d_loss_plus_reg', self.d_loss, collections='D')
+            tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
+
+        # Generative loss
+        g_loss = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(self.predict_d_logits_for_g,
                                                     tf.ones_like(self.predict_d_for_g)))
-        tf.summary.scalar('g_loss', self.g_loss, collections='G')
+        tf.summary.scalar('g_loss', g_loss, collections='G')
+
+        l2_loss = tf.reduce_mean(tf.square(tf.squeeze(self.predict_g) - self.labels), name='L2-Loss')
+        tf.summary.scalar('g_loss_L2_only', l2_loss, collections='G')
+
+        self.g_loss = FLAGS.gen_loss_adversarial * g_loss + FLAGS.gen_loss_context * l2_loss
+        tf.summary.scalar('g_loss_plus_L2', self.g_loss, collections='G')
+
+        if len(self.regularization_values) > 0:
+            reg_loss_g = self.reg_w * tf.reduce_sum(self.regularization_values)
+            self.g_loss += reg_loss_g
+            tf.summary.scalar('g_loss_plus_L2_plus_reg', self.d_loss, collections='G')
+            tf.summary.scalar('g_loss_reg_only', reg_loss_g, collections='D')
 
         tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G')
 
