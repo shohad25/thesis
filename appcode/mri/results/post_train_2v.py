@@ -16,11 +16,11 @@ with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
 
 
-def post_train_super_resolution_mc(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
+def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
     """
     This function read predictions (dictionary) and compare it to the data
     :param data_dir: data main directory
-    :param predict_paths: predict path MC
+    :param predict_paths: dictionary
     :param h: height
     :param w: width
     :param tt: train or test
@@ -39,27 +39,33 @@ def post_train_super_resolution_mc(data_dir, predict_paths, h=256, w=256, tt='te
 
     method = 'bilinear'
     predict_info = {'width': w, 'height': h, 'channels': 2, 'dtype': 'float32'}
-    f_predict_mc = FileHandler(path=predict_paths[0], info=predict_info, read_or_write='read', name='predict_mc')
 
-    f_interp_mc = FileHandler(path=predict_paths[1], info=predict_info, read_or_write='read', name='interp_mc')
+    f_predict = {}
+    for (pred_name, pred_path) in predict_paths.iteritems():
+        if pred_name != 'interp':
+            f_predict[pred_name] = FileHandler(path=pred_path, info=predict_info, read_or_write='read', name=pred_name)
+
+    f_interp_mc = FileHandler(path=predict_paths['interp'], info=predict_info, read_or_write='read', name='interp_mc')
 
     data_set = KspaceDataSet(data_dir, file_names, stack_size=50, shuffle=False)
 
     data_set_tt = getattr(data_set, tt)
-    fig, ax = plt.subplots(nrows=2, ncols=3)
+    fig, ax = plt.subplots(nrows=2, ncols=4)
     fig.set_size_inches(18.5, 10.5, forward=True)
     
     while data_set_tt.epoch == 0:
         # Running over all data until epoch > 0
         data = data_set_tt.next_batch(mini_batch, norm=False)
-        mc_p = f_predict_mc.read(n=mini_batch, reshaped=True)
+        pred_p = {pred_name: pred_io.read(n=mini_batch, reshaped=True) for (pred_name, pred_io) in f_predict.iteritems()}
         mc_interp = f_interp_mc.read(n=mini_batch, reshaped=True)
-        real_p = norm_r(mc_p[:,0,:,:])
-        imag_p = norm_i(mc_p[:,1,:,:])
+
+        real_p = {pred_name: norm_r(pred_data[:,0,:,:]) for pred_name, pred_data in pred_p.iteritems()}
+        imag_p = {pred_name: norm_r(pred_data[:,1,:,:]) for pred_name, pred_data in pred_p.iteritems()}
+
         real_interp = norm_r(mc_interp[:,0,:,:])
         imag_interp = norm_i(mc_interp[:,1,:,:])
 
-        for i in range(0, real_p.shape[0]):
+        for i in range(0, real_interp.shape[0]):
 
             # Original image
             k_space_real_gt = data["k_space_real_gt"][i,:,:]
@@ -68,18 +74,18 @@ def post_train_super_resolution_mc(data_dir, predict_paths, h=256, w=256, tt='te
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
             # Interpolation
-            # k_space_real_gt_sub = interpolated_missing_samples(data["k_space_real"][i,:,:], dims_out=(w,h), method=method)
-            # k_space_imag_gt_sub = interpolated_missing_samples(data["k_space_imag"][i,:,:], dims_out=(w,h), method=method)
-            # k_space_amp_interp = np.log(1+np.sqrt(k_space_real_gt_sub**2 + k_space_imag_gt_sub**2))
-            # rec_image_interp = get_image_from_kspace(k_space_real_gt_sub, k_space_imag_gt_sub)
-
             rec_image_interp = get_image_from_kspace(real_interp, imag_interp)[i,:,:].T
             k_space_amp_interp = np.log(1+np.sqrt(real_interp**2 + imag_interp**2))[i,:,:].T
 
+            # Network predicted model 1
+            name_1 = real_p.keys()[0]
+            rec_image_1 = get_image_from_kspace(real_p[name_1], imag_p[name_1])[i,:,:].T
+            k_space_amp_predict_1 = np.log(1+np.sqrt(real_p[name_1]**2 + imag_p[name_1]**2))[i,:,:].T
 
-            # Network predicted model
-            rec_image = get_image_from_kspace(real_p, imag_p)[i,:,:].T
-            k_space_amp_predict = np.log(1+np.sqrt(real_p**2 + imag_p**2))[i,:,:].T
+            # Network predicted model 2
+            name_2 = real_p.keys()[1]
+            rec_image_2 = get_image_from_kspace(real_p[name_2], imag_p[name_2])[i,:,:].T
+            k_space_amp_predict_2 = np.log(1+np.sqrt(real_p[name_2]**2 + imag_p[name_2]**2))[i,:,:].T
 
             ############ Original############
             ax[0][0].set_title('Original Image')
@@ -95,12 +101,19 @@ def post_train_super_resolution_mc(data_dir, predict_paths, h=256, w=256, tt='te
             ax[1][1].set_title('Interp K-space:%s ' % method)
             ax[1][1].imshow(k_space_amp_interp, interpolation="none", cmap="gray")
 
-            ########### DNN ############
-            ax[0][2].set_title('DNN Reconstructed Image')
-            ax[0][2].imshow(rec_image, interpolation="none", cmap="gray")
+            ########### DNN 1 ############
+            ax[0][2].set_title('DNN Reconstructed Image - ' + name_1)
+            ax[0][2].imshow(rec_image_1, interpolation="none", cmap="gray")
 
-            ax[1][2].set_title('DNN K-space')
-            ax[1][2].imshow(k_space_amp_predict, interpolation="none", cmap="gray")
+            ax[1][2].set_title('DNN K-space _ ' + name_1)
+            ax[1][2].imshow(k_space_amp_predict_1, interpolation="none", cmap="gray")
+
+            ########### DNN 2 ############
+            ax[0][3].set_title('DNN Reconstructed Image  - ' + name_2)
+            ax[0][3].imshow(rec_image_2, interpolation="none", cmap="gray")
+
+            ax[1][3].set_title('DNN K-space - ' + name_2)
+            ax[1][3].imshow(k_space_amp_predict_2, interpolation="none", cmap="gray")
 
             plt.draw()
 
@@ -110,11 +123,12 @@ def post_train_super_resolution_mc(data_dir, predict_paths, h=256, w=256, tt='te
 
 if __name__ == '__main__':
     data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-    predict_paths = ['/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.predict.bin',
-                    '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin']
-
+    predict = {'gan': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.predict.bin',
+               'gan_24':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_24_fft/000000.predict.bin',
+               'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+               }
     w = 256
     h = 256
     tt = 'train'
     show = False
-    post_train_super_resolution_mc(data_dir, predict_paths, h, w, tt, show)
+    post_train_2v(data_dir, predict, h, w, tt, show)
