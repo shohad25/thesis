@@ -198,13 +198,14 @@ class KSpaceSuperResolutionGAN(BasicModel):
         # regularization ?
 
         self.d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(None, self.predict_d_logits,
-                                                    tf.ones_like(self.predict_d)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits,
+                                                    labels=tf.ones_like(self.predict_d)))
+
         tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
 
         self.d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(None, self.predict_d_logits_for_g,
-                                                    tf.zeros_like(self.predict_d_for_g)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
+                                                    labels=tf.zeros_like(self.predict_d_for_g)))
         tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
@@ -218,8 +219,8 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         # Generative loss
         g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(None, self.predict_d_logits_for_g,
-                                                    tf.ones_like(self.predict_d_for_g)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
+                                                    labels=tf.ones_like(self.predict_d_for_g)))
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
         context_loss = tf.reduce_mean(tf.square(tf.squeeze(self.predict_g) - self.labels), name='L2-Loss')
