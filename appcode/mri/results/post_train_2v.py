@@ -123,10 +123,28 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
 
 if __name__ == '__main__':
     data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-    predict = {'gan': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.predict.bin',
-               'gan_24':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_24_fft/000000.predict.bin',
+    # predict = {'gan': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.predict.bin',
+    #            'gan_24':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_24_fft/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # Multi-Channel
+    #1.  /media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_02_10_good_results/predict/train/000000.predict.bin
+    #2. /media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_01_23.bkp/000000.predict.bin
+    # predict = {'mc_02_10': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_02_10_good_results/predict/train/000000.predict.bin',
+    #            'mc_01_23':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/multi_channel/2017_01_23.bkp/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # GAN:
+    # 1. 'gan_resnet': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/AWS_to_check/2017_02_24_resnet/predict/train/000000.predict.bin'
+    # 2.
+    predict = {'gan_resnet': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/AWS_to_check/2017_02_24_resnet/predict/train/000000.predict.bin',
+               'gan_25_fft':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_25_fft/predict/train/000000.predict.bin',
                'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
                }
+
+
     w = 256
     h = 256
     tt = 'train'
