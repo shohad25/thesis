@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from appcode.mri.k_space.files_info import files_info, get_file_info
+from appcode.mri.k_space.files_info import files_info
 from common.files_IO.file_handler import FileHandler
 
 

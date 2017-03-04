@@ -9,7 +9,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
     Represents k-space super resolution model
     """
 
-    def __init__(self, input=None, labels=None, dims_in=None, dims_out=None, FLAGS=None, train_phase=None, adv_loss_w=None):
+    def __init__(self, input=None, labels=None, dims_in=None, dims_out=None, FLAGS=None, train_phase=None, adv_loss_w=None, mask=None):
         """
         :param input:
         :param labels:
@@ -25,6 +25,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
         self.train_phase = train_phase
         self.predict_g = None
         self.adv_loss_w = adv_loss_w
+        self.mask = mask
 
         self.predict_d = None
         self.predict_d_logits = None
@@ -90,15 +91,19 @@ class KSpaceSuperResolutionGAN(BasicModel):
         tf.summary.image('G_x_input_real', input_real, collections='G')
         tf.summary.image('G_x_input_imag', input_imag, collections='G')
 
+        tf.summary.image('reconst_zero_padding', self.get_reconstructed_image(real=self.input[:,:,:,0], imag=self.input[:,:,:,1], name='test') , collections='G')
+        tf.summary.image('mask', tf.slice(self.mask, begin=[0, 0, 0, 0], size=[1, -1, -1, 1]), collections='G')
         # Apply image resize for debugging
-        self.x_input_upscale = tf.image.resize_bilinear(self.input, np.array([self.dims_out[0],
-                                                                      self.dims_out[1]]), align_corners=None,
-                                                        name='G_x_input_upscale_iamg')
-
+        # self.x_input_upscale = tf.image.resize_bilinear(self.input, np.array([self.dims_out[0],
+        #                                                               self.dims_out[1]]), align_corners=None,
+        #                                                 name='G_x_input_upscale_iamg')
+        # tf.summary.image('reconst_bilinear', self.get_reconstructed_image(real=self.x_input_upscale[:,:,:,0],
+        #                                                                   imag=self.x_input_upscale[:,:,:,1], name='test') , collections='G')
+        #
         # Model convolutions
         # with tf.name_scope('real'):
         out_dim = 8
-        self.conv_1, reg_1 = ops.conv2d(self.x_input_upscale, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
+        self.conv_1, reg_1 = ops.conv2d(self.input, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
         # self.conv_1, reg_1 = ops.conv2d(tf.expand_dims(self.x_input_upscale[:,:,:,0], 3), output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
         self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
         self.relu_1 = tf.nn.relu(self.conv_1_bn)
@@ -178,6 +183,9 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         predict = tf.reshape(self.conv_6, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict')
 
+        print("Add the input for creating res-predict")
+        predict += self.input
+
         # Dump prediction out
         predict_real = tf.slice(predict, begin=[0, 0, 0, 0], size=[1, -1, -1, 1], name='G_Slice_real_input')
         predict_imag = tf.slice(predict, begin=[0, 0, 0, 1], size=[1, -1, -1, 1], name='G_Slice_imag_input')
@@ -255,15 +263,15 @@ class KSpaceSuperResolutionGAN(BasicModel):
         """
         # regularization ?
 
-        self.d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits,
-                                                    labels=tf.ones_like(self.predict_d)))
+        self.d_loss_real = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d, targets=tf.ones_like(self.predict_d)))
+            # tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits,
+            #                                         labels=tf.ones_like(self.predict_d)))
 
         tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
 
-        self.d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
-                                                    labels=tf.zeros_like(self.predict_d_for_g)))
+        self.d_loss_fake = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.zeros_like(self.predict_d_for_g)))
+            # tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
+            #                                         labels=tf.zeros_like(self.predict_d_for_g)))
         tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
@@ -276,12 +284,13 @@ class KSpaceSuperResolutionGAN(BasicModel):
             tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
 
         # Generative loss
-        g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
-                                                    labels=tf.ones_like(self.predict_d_for_g)))
+        g_loss = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
+            # tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
+            #                                         labels=tf.ones_like(self.predict_d_for_g)))
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
-        context_loss = tf.reduce_mean(tf.square(tf.squeeze(self.predict_g) - self.labels), name='L2-Loss')
+        l2 = tf.square(tf.squeeze(self.predict_g) - self.labels) * (1-self.mask)
+        context_loss = tf.reduce_mean(l2, name='L2-Loss')
         tf.summary.scalar('g_loss_context_only', context_loss, collections='G')
 
         self.g_loss = self.adv_loss_w * g_loss + self.FLAGS.gen_loss_context * context_loss

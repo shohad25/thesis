@@ -1,4 +1,4 @@
-#!/home/ohadsh/Tools/anaconda/bin/python
+# !/home/ohadsh/Tools/anaconda/bin/python
 import numpy as np
 import json
 import os
@@ -11,7 +11,8 @@ file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt', 'mask', 'k_space
 mini_batch = 50
 
 
-base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+# base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle'
 with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
 
@@ -79,6 +80,9 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
 
             # Network predicted model 1
             name_1 = real_p.keys()[0]
+            # mask_1 = data["mask"][i,:,:]
+            # real_1 = real_p[name_1] * (1-mask_1.T) + mask_1.T * real_p[name_1]
+            # imag_1 = imag_p[name_1] * (1-mask_1.T) + mask_1.T * imag_p[name_1]
             rec_image_1 = get_image_from_kspace(real_p[name_1], imag_p[name_1])[i,:,:].T
             k_space_amp_predict_1 = np.log(1+np.sqrt(real_p[name_1]**2 + imag_p[name_1]**2))[i,:,:].T
 
@@ -138,11 +142,65 @@ if __name__ == '__main__':
 
     # GAN:
     # 1. 'gan_resnet': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/AWS_to_check/2017_02_24_resnet/predict/train/000000.predict.bin'
-    # 2.
-    predict = {'gan_resnet': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/AWS_to_check/2017_02_24_resnet/predict/train/000000.predict.bin',
-               'gan_25_fft':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_25_fft/predict/train/000000.predict.bin',
+    # 2. 'gan_25_fft':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_25_fft/predict/train/000000.predict.bin',
+    # predict = {'gan_resnet': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/AWS_to_check/2017_02_24_resnet/predict/train/000000.predict.bin',
+    #            'gan_25_fft':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_25_fft/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # GAN with interpolation
+    # 1. 'interp2':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/2017_02_28_interp2/predict/train/000000.predict.bin',
+    # 2. 'interp3':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/2017_02_28_interp3/predict/train/000000.predict.bin',
+    # predict = {'interp3':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/2017_02_28_interp3/predict/train/000000.predict.bin',
+    #            'interp2':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/2017_02_28_interp2/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # GAN with interpolation - update from AWS
+    # 1. 'interp_resnet':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update/gan/2017_02_28_interp_resnet/predict/train/000000.predict.bin',
+    # 2. 'interp2' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update/gan/2017_02_28_interp2/predict/train/000000.predict.bin',
+    # predict = {'interp_resnet':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update/gan/2017_02_28_interp_resnet/predict/train/000000.predict.bin',
+    #            'interp2' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update/gan/2017_02_28_interp2/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # GAN with interpolation - update Update_30_1
+    # 1. 'interp':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp/predict/train/000000.predict.bin',
+    # 2. 'interp2' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp2/predict/train/000000.predict.bin',
+    # 3. 'interp3': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp3/predict/train/000000.predict.bin'
+    # 4. 'resnet' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp_resnet/predict/train/000000.predict.bin'
+    # predict = {'interp':'/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp/predict/train/000000.predict.bin',
+    #            'interp2' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp2/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+    #
+    # predict = {'interp3': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp3/predict/train/000000.predict.bin',
+    #            'resnet' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_1/2017_02_28_interp_resnet/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # Only geneator , NO discriminator  update Update_30_2
+    # predict = {'interp_no_disc': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_2/2017_03_01_interp_no_disc/2017_03_01_interp_no_disc/predict/train/000000.predict.bin',
+    #            'interp_no_disc_resnet' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/AWS/Update_30_2/2017_03_01_interp_no_disc/2017_03_01_interp_no_disc/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    # Zero Padding 128
+    # predict = {'AWS': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/zeroPadding/mc_128/predict/train/000000.predict.bin',
+    #            'AWS2': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/zeroPadding/mc_128/predict/train/000000.predict.bin',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #           }
+    # Zero padding 140 (10 percent)
+    predict = {'2channels-interp': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/2017_03_02_to_networks/predict/train/000000.predict.bin',
+               'zeroPadding140' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/zeroPadding/mc_10_percent/2017_03_02_zero_padding/predict/train/000000.predict.bin',
                'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               }
+              }
+
+    # Zero padding low pass 64
+    # predict = {'lowPass': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/zeroPadding/mc_low_pass_64/2017_03_02/predict/train/000000.predict.bin',
+    #        'AWS2': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/interp/zeroPadding/mc_128/predict/train/000000.predict.bin',
+    #        'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #       }
 
 
     w = 256

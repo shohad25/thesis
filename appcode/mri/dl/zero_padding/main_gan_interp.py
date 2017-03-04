@@ -10,7 +10,7 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.dl.gan.k_space_gan_fft_resnet import KSpaceSuperResolutionResGAN
+from appcode.mri.dl.zero_padding.k_space_gan_interp import KSpaceSuperResolutionGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -18,10 +18,15 @@ import datetime
 import argparse
 import json
 from collections import defaultdict
+import shutil
+import inspect
 
 # k space data set on loca SSD
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+print("working on low pass 64 images")
+# base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
+# file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -33,23 +38,20 @@ flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
 flags.DEFINE_float('gen_loss_adversarial', 1.0, 'Generative loss, adversarial weight.')
-# flags.DEFINE_float('gen_loss_adversarial', 0.1, 'Generative loss, adversarial weight.')
+flags.DEFINE_integer('iters_no_adv', 1, 'Iters with adv_w=0')
 
-# print(FLAGS.gen_loss_adversarial)
+# flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
+# flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
+flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 10, 'Print train frequency')
 
-flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-# flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
-# flags.DEFINE_integer('print_train', 1, 'Print train frequency')
-
-flags.DEFINE_integer('num_gen_updates', 3, 'Print train frequency')
+flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
 
-DIMS_IN = np.array([128, 256, 2])
+DIMS_IN = np.array([256, 256, 2])
 DIMS_OUT = np.array([256, 256, 2])
-
 
 # flags.DEFINE_string('train_dir', args.train_dir,
 #                            """Directory where to write event logs """
@@ -65,7 +67,7 @@ with open(os.path.join(base_dir, "factors.json"), 'r') as f:
 FLAGS.data_factors = data_factors
 
 
-def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10):
+def feed_data(data_set, x_input, y_input, train_phase, mask_in, tt='train', batch_size=10):
     """
     Feed data into dictionary
     :param data_set: data set object
@@ -83,22 +85,33 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
     # Normalize data
-    mu_r = np.float32(data_factors['mean'][file_names['x_r']])
-    sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['x_r']]))
+    mu_r = np.float32(data_factors['mean'][file_names['y_r']])
+    sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['y_r']]))
     norm_r = lambda x: (x - mu_r) / sigma_r
 
-    mu_i = np.float32(data_factors['mean'][file_names['x_i']])
-    sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['x_i']]))
+    mu_i = np.float32(data_factors['mean'][file_names['y_i']])
+    sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['y_i']]))
     norm_i = lambda x: (x - mu_i) / sigma_i
 
-    y_in = np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3)
-    # d_in = y_in.copy()
+    real = norm_r(next_batch[file_names['y_r']])
+    imag = norm_i(next_batch[file_names['y_i']])
+    y_in = np.concatenate((real[:, :, :, np.newaxis], imag[:, :, :, np.newaxis]), 3)
+
+    #mask = next_batch[file_names['mask']]
+    mask = np.zeros_like(real, dtype=np.uint8)
+    x_rand = np.random.uniform(size=batch_size)
+    for ex in range(0, mask.shape[0]):
+        movi_x = int(10*x_rand[ex] - 5)
+        mask[ex, 96+movi_x:160+movi_x, :] = 1
+
+    x_in = np.concatenate(((real * mask)[:, :, :, np.newaxis],
+                           (imag * mask)[:, :, :, np.newaxis]), 3)
+
     # Feed input as multi-channel: [0: real, 1: imaginary]
-    feed = {x_input: np.concatenate((norm_r(next_batch[file_names['x_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['x_i']][:, :, :, np.newaxis])), 3),
+    feed = {x_input: x_in,
             y_input: y_in,
-            train_phase: t_phase
+            train_phase: t_phase,
+            mask_in: np.concatenate([mask[:,:,:,np.newaxis], mask[:,:,:,np.newaxis]], axis=3)
             }
     return feed
 
@@ -138,6 +151,7 @@ def save_checkpoint(sess, saver, step):
     checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
     saver.save(sess, checkpoint_path, global_step=step)
 
+
 def load_graph():
     """
     :return:
@@ -145,10 +159,11 @@ def load_graph():
     # Init inputs as placeholders
     x_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_IN), name='x_input')
     y_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='y_input')
+    mask = tf.placeholder(tf.float32, shape=[None] + list(DIMS_IN), name='mask')
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
-    network = KSpaceSuperResolutionResGAN(input=x_input, labels=y_input, dims_in=DIMS_IN,
-                                      dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w)
+    network = KSpaceSuperResolutionGAN(input=x_input, labels=y_input, dims_in=DIMS_IN,
+                                      dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w, mask=mask)
     network.build()
     return network
 
@@ -184,31 +199,32 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    gen_loss_adversarial = 0.0
+    gen_loss_adversarial = 0.1
+    # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
 
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(1, FLAGS.max_steps):
 
-        if i % 10000 == 0:
-            gen_loss_adversarial = 1.0
-            print("Changing adv loss to be %f" % gen_loss_adversarial)
+        # if i % FLAGS.iters_no_adv == 0:
+        #     gen_loss_adversarial = 0.1
+            # print("Changing adv loss to be %f" % gen_loss_adversarial)
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
-            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase, net.mask,
                              tt='test', batch_size=FLAGS.mini_batch_size)
-            feed[net.adb_loss_w] = gen_loss_adversarial
+            feed[net.adv_loss_w] = gen_loss_adversarial
             if len(feed[net.input]):
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
 
         else:
             # Training
-            feed = feed_data(data_set, net.input, net.labels, net.train_phase,
+            feed = feed_data(data_set, net.input, net.labels, net.train_phase, net.mask,
                              tt='train', batch_size=FLAGS.mini_batch_size)
-            feed[net.adb_loss_w] = gen_loss_adversarial
+            feed[net.adv_loss_w] = gen_loss_adversarial
             # sess.run([merged], feed_dict=feed)
             if len(feed[net.input]):
 
@@ -296,6 +312,10 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
 
 
 def main(args):
+
+    # Copy scripts to training dir
+    shutil.copy(os.path.abspath(__file__), args.train_dir)
+    shutil.copy(inspect.getfile(KSpaceSuperResolutionGAN), args.train_dir)
 
     if args.mode == 'train' or args.mode == 'resume':
         train_model(args.mode, args.checkpoint)

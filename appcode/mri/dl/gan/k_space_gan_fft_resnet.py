@@ -10,7 +10,7 @@ class KSpaceSuperResolutionResGAN(KSpaceSuperResolutionGAN):
     Represents k-space super resolution model
     """
 
-    def __init__(self, input=None, labels=None, dims_in=None, dims_out=None, FLAGS=None, train_phase=None):
+    def __init__(self, input=None, labels=None, dims_in=None, dims_out=None, FLAGS=None, train_phase=None, adv_loss_w=None):
         """
         :param input:
         :param labels:
@@ -18,7 +18,7 @@ class KSpaceSuperResolutionResGAN(KSpaceSuperResolutionGAN):
         :param dims_out:
         """
         KSpaceSuperResolutionGAN.__init__(self, input=input, labels=labels, dims_in=dims_in,
-                                          dims_out=dims_out, FLAGS=FLAGS, train_phase=train_phase)
+                                          dims_out=dims_out, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w)
 
     def __G__(self):
         """
@@ -36,6 +36,11 @@ class KSpaceSuperResolutionResGAN(KSpaceSuperResolutionGAN):
         tf.summary.image('G_x_input_real', input_real, collections='G')
         tf.summary.image('G_x_input_imag', input_imag, collections='G')
 
+        # out_dim = 16
+        # self.res_block_1, res_block_reg = ops.res_block(self.relu_1, output_dim=out_dim, train_phase=self.train_phase,
+        #                                                 k_h=3, k_w=3, d_h=1, d_w=1, name="G_res_block_1")
+        # self.regularization_values.append(res_block_reg)
+
         # Model convolutions
         out_dim = 8
         self.conv_1, reg_1 = ops.conv2d(self.input, output_dim=out_dim, k_h=5, k_w=5, d_h=1, d_w=1, name="G_conv_1")
@@ -51,13 +56,14 @@ class KSpaceSuperResolutionResGAN(KSpaceSuperResolutionGAN):
         self.relu_2 = tf.nn.relu(self.conv_2_bn)
         self.regularization_values.append(reg_2)
 
-        out_dim = 4
-        self.res_block_1, res_block_reg = ops.res_block(self.relu_2, output_dim=out_dim, train_phase=self.train_phase,
-                                                        k_h=3, k_w=3, d_h=1, d_w=1, name="G_res_block_1")
-        self.regularization_values.append(res_block_reg)
+        out_dim = 2
+        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_3")
+        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
+        self.relu_3 = tf.nn.relu(self.conv_3_bn)
+        self.regularization_values.append(reg_3)
 
         out_dim = 2
-        self.conv_4, reg_4 = ops.conv2d(self.res_block_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
+        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
         self.regularization_values.append(reg_4)
 
         predict = tf.reshape(self.conv_4, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict')
@@ -139,15 +145,21 @@ class KSpaceSuperResolutionResGAN(KSpaceSuperResolutionGAN):
         """
         # regularization ?
 
+        # self.d_loss_real = tf.reduce_mean(
+        #     tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits,
+        #                                             labels=tf.ones_like(self.predict_d)))
         self.d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits,
-                                                    labels=tf.ones_like(self.predict_d)))
+            ops.binary_cross_entropy(preds=self.predict_d, targets=tf.ones_like(self.predict_d)))
 
         tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
 
+        # self.d_loss_fake = tf.reduce_mean(
+        #     tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
+        #                                             labels=tf.zeros_like(self.predict_d_for_g)))
+
         self.d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
-                                                    labels=tf.zeros_like(self.predict_d_for_g)))
+            ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.zeros_like(self.predict_d_for_g)))
+
         tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
@@ -160,15 +172,22 @@ class KSpaceSuperResolutionResGAN(KSpaceSuperResolutionGAN):
             tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
 
         # Generative loss
+        # g_loss = tf.reduce_mean(
+        #     tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
+        #                                             labels=tf.ones_like(self.predict_d_for_g)))
         g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
-                                                    labels=tf.ones_like(self.predict_d_for_g)))
+            ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
+
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
         context_loss = tf.reduce_mean(tf.square(tf.squeeze(self.predict_g) - self.labels), name='L2-Loss')
         tf.summary.scalar('g_loss_context_only', context_loss, collections='G')
 
-        self.g_loss = self.FLAGS.gen_loss_adversarial * g_loss + self.FLAGS.gen_loss_context * context_loss
+        # print("from inside %f" % self.FLAGS.gen_loss_adversarial)
+        # self.g_loss = self.FLAGS.gen_loss_adversarial * g_loss + self.FLAGS.gen_loss_context * context_loss
+
+        self.g_loss = self.adb_loss_w * g_loss + self.FLAGS.gen_loss_context * context_loss
+
         tf.summary.scalar('g_loss_plus_context', self.g_loss, collections='G')
 
         if len(self.regularization_values) > 0:

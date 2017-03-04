@@ -23,6 +23,8 @@ import inspect
 
 # k space data set on loca SSD
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+print("working on 140 lines images")
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
 file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
 flags = tf.app.flags
@@ -39,15 +41,15 @@ flags.DEFINE_integer('iters_no_adv', 1, 'Iters with adv_w=0')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 100, 'Print test frequency')
-flags.DEFINE_integer('print_train', 10, 'Print train frequency')
+flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
-flags.DEFINE_integer('num_gen_updates', 3, 'Print train frequency')
+flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 
 
-DIMS_IN = np.array([128, 256, 2])
+DIMS_IN = np.array([140, 256, 2])
 DIMS_OUT = np.array([256, 256, 2])
 
 
@@ -185,17 +187,17 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    # gen_loss_adversarial = 0.0
-    gen_loss_adversarial = FLAGS.gen_loss_adversarial
+    gen_loss_adversarial = 0.0
+    # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
 
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(1, FLAGS.max_steps):
 
-        # if i % FLAGS.iters_no_adv == 0:
-        #     gen_loss_adversarial = 1.0
-        #     print("Changing adv loss to be %f" % gen_loss_adversarial)
+        if i % FLAGS.iters_no_adv == 0:
+            gen_loss_adversarial = 0.1
+            # print("Changing adv loss to be %f" % gen_loss_adversarial)
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
