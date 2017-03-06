@@ -50,7 +50,7 @@ flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
-flags.DEFINE_boolean('dump_debug', True, 'wide_debug_tensorboard')
+flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
 
 
 # keep_center = 0
@@ -94,9 +94,12 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
         t_phase = False
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
-
     real = next_batch[file_names['y_r']]
     imag = next_batch[file_names['y_i']]
+
+    if len(real) == 0 or len(imag) == 0:
+        return None
+
     start_line = 0 if random.random() > 0.5 else 1
 
     mask = get_random_mask(w=DIMS_OUT[0], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
@@ -137,6 +140,7 @@ def run_evaluation(sess, feed, net, step, writer, tt):
 
     r_g, r_d, loss_d_fake, loss_d_real, loss_d, loss_g, l2_norm = sess.run([m_op_g, m_op_d, net.d_loss_fake, net.d_loss_real,
                                                                    net.d_loss, net.g_loss, net.evaluation], feed_dict=feed)
+
     writer['G'].add_summary(r_g, step)
     writer['D'].add_summary(r_d, step)
 
@@ -217,14 +221,13 @@ def train_model(mode, checkpoint=None):
 
         if i % FLAGS.iters_no_adv == 0:
             gen_loss_adversarial = FLAGS.gen_loss_adversarial
-            # print("Changing adv loss to be %f" % gen_loss_adversarial)
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt='test', batch_size=FLAGS.mini_batch_size)
-            feed[net.adv_loss_w] = gen_loss_adversarial
-            if len(feed[net.input['real']]):
+            if feed is not None:
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
 
@@ -232,10 +235,8 @@ def train_model(mode, checkpoint=None):
             # Training
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
-            feed[net.adv_loss_w] = FLAGS.gen_loss_adversarial
-            # sess.run([merged], feed_dict=feed)
-            if len(feed[net.input['real']]):
-
+            if feed is not None:
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 # Update D network
                 if k % FLAGS.num_gen_updates == 0:
                     _, d_loss_fake, d_loss_real, d_loss = \
@@ -301,8 +302,8 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
             # Running over all data until epoch > 0
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt=tt, batch_size=FLAGS.mini_batch_size)
-            feed[net.adv_loss_w] = gen_loss_adversarial
-            if len(feed[net.input['real']]):
+            if feed is not None:
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
 
                 all_acc.append(np.array(result))
