@@ -50,6 +50,8 @@ flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
+flags.DEFINE_boolean('dump_debug', True, 'wide_debug_tensorboard')
+
 
 # keep_center = 0
 # DIMS_IN = np.array([128, 256, 1])

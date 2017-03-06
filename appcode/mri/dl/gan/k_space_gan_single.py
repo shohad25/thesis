@@ -89,8 +89,10 @@ class KSpaceSuperResolutionGAN(BasicModel):
         # Dump input image out
         x_real = tf.reshape(self.input['real'], [-1, self.dims_in[0], self.dims_in[1], self.dims_in[2]], name='x_real')
         x_imag = tf.reshape(self.input['imag'], [-1, self.dims_in[0], self.dims_in[1], self.dims_in[2]], name='x_imag')
-        tf.summary.image('G_x_input_real', x_real, collections='G', max_outputs=2)
-        tf.summary.image('G_x_input_imag', x_imag, collections='G', max_outputs=2)
+
+        if self.FLAGS.dump_debug:
+            tf.summary.image('G_x_input_real', x_real, collections='G', max_outputs=2)
+            tf.summary.image('G_x_input_imag', x_imag, collections='G', max_outputs=2)
 
         tf.summary.image('G_mask', self.labels['mask'], collections='G', max_outputs=1)
 
@@ -188,10 +190,6 @@ class KSpaceSuperResolutionGAN(BasicModel):
         predict['real'] = tf.reshape(self.conv_6, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
         predict['imag'] = tf.reshape(self.conv_66, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
 
-        # Dump prediction out
-        tf.summary.image('G_predict_real', predict['real'], collections='G')
-        tf.summary.image('G_predict_imag', predict['imag'], collections='G')
-
         # Masking
         mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
         predict['real'] = tf.multiply(predict['real'], mask_not)
@@ -202,6 +200,11 @@ class KSpaceSuperResolutionGAN(BasicModel):
         predict['real'] += tf.multiply(self.labels['real'], self.labels['mask'])
         predict['imag'] += tf.multiply(self.labels['imag'], self.labels['mask'])
 
+        # Dump prediction out
+        if self.FLAGS.dump_debug:
+            tf.summary.image('G_predict_real', predict['real'], collections='G')
+            tf.summary.image('G_predict_imag', predict['imag'], collections='G')
+
         # return tf.stack([predict['real'], predict['imag']], axis=3)
         return predict
 
@@ -210,17 +213,11 @@ class KSpaceSuperResolutionGAN(BasicModel):
         Define the discriminator
         """
         # Dump input image out
-        # input_real = tf.slice(input_d, begin=[0, 0, 0, 0], size=[1, -1, -1, 1], name='D_Slice_real_input')
-        # input_imag = tf.slice(input_d, begin=[0, 0, 0, 1], size=[1, -1, -1, 1], name='D_Slice_imag_input')
 
         input_real = tf.concat(axis=0, values=[input_d[0]['real'], input_d[1]['real']])
         input_imag = tf.concat(axis=0, values=[input_d[0]['imag'], input_d[1]['imag']])
 
-        # tf.summary.image('D_x_input_real' + input_type, input_real, collections='D')
-        # tf.summary.image('D_x_input_imag' + input_type, input_imag, collections='D')
-
         # Input d holds real&imaginary values. The discriminative decision based on reconstructed image
-
         input_to_discriminator = self.get_reconstructed_image(real=input_real, imag=input_imag, name='Both')
 
         org, fake = tf.split(input_to_discriminator, num_or_size_splits=2, axis=0)
@@ -299,8 +296,9 @@ class KSpaceSuperResolutionGAN(BasicModel):
         if len(self.regularization_values_d) > 0:
             reg_loss_d = self.reg_w * tf.reduce_sum(self.regularization_values_d)
             self.d_loss += reg_loss_d
-            tf.summary.scalar('d_loss_plus_reg', self.d_loss, collections='D')
-            tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
+            if self.FLAGS.dump_debug:
+                tf.summary.scalar('d_loss_plus_reg', self.d_loss, collections='D')
+                tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
 
         # Generative loss
         g_loss = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
@@ -310,23 +308,22 @@ class KSpaceSuperResolutionGAN(BasicModel):
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
         # Context loss
-        real_diff = tf.multiply(tf.squeeze(self.predict_g['real']) - tf.squeeze(self.labels['real']), tf.squeeze(self.labels['mask']))
-        imag_diff = tf.multiply(tf.squeeze(self.predict_g['imag']) - tf.squeeze(self.labels['imag']), tf.squeeze(self.labels['mask']))
-        context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
-        # context_loss = tf.reduce_mean(tf.square(tf.squeeze(self.predict_g['real']) - tf.squeeze(self.labels['real'])), name='L2-Loss-real') \
-        #                + tf.reduce_mean(tf.square(tf.squeeze(self.predict_g['imag']) - tf.squeeze(self.labels['imag'])), name='L2-Loss-image')
+        real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], self.labels['mask']))
+        imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], self.labels['mask']))
+        self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
 
-        tf.summary.scalar('g_loss_context_only', context_loss, collections='G')
+        tf.summary.scalar('g_loss_context_only', self.context_loss, collections='G')
 
-        self.g_loss = self.adv_loss_w * g_loss + self.FLAGS.gen_loss_context * context_loss
+        self.g_loss = self.adv_loss_w * g_loss + self.FLAGS.gen_loss_context * self.context_loss
         # self.g_loss = self.FLAGS.gen_loss_adversarial * g_loss + self.FLAGS.gen_loss_context * context_loss
         tf.summary.scalar('g_loss_plus_context', self.g_loss, collections='G')
 
         if len(self.regularization_values) > 0:
             reg_loss_g = self.reg_w * tf.reduce_sum(self.regularization_values)
             self.g_loss += reg_loss_g
-            tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G')
-            tf.summary.scalar('g_loss_reg_only', reg_loss_g, collections='D')
+            if self.FLAGS.dump_debug:
+                tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G')
+                tf.summary.scalar('g_loss_reg_only', reg_loss_g, collections='D')
 
         tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G')
 
@@ -362,17 +359,15 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         return train_op_d, train_op_g
 
-    @staticmethod
-    def __evaluation__(predict, labels):
+    def __evaluation__(self, predict, labels):
         """
         :param predict:
         :param labels:
         :return:
         """
-        evalu = tf.reduce_mean(tf.square(tf.squeeze(predict['real']) - tf.squeeze(labels['real']))) \
-                + tf.reduce_mean(tf.square(tf.squeeze(predict['imag']) - tf.squeeze(labels['imag'])))
-        # tf.summary.scalar("Evaluation", evalu)
-        # Return the number of true entries.
+        # evalu = tf.reduce_mean(tf.square(tf.squeeze(predict['real']) - tf.squeeze(labels['real']))) \
+        #         + tf.reduce_mean(tf.square(tf.squeeze(predict['imag']) - tf.squeeze(labels['imag'])))
+        evalu = self.context_loss
         return evalu
 
     def get_reconstructed_image(self, real, imag, name=None):
@@ -382,21 +377,8 @@ class KSpaceSuperResolutionGAN(BasicModel):
         :param name:
         :return:
         """
-        # factors = self.FLAGS.data_factors
-
-        # mu_r = np.float32(factors['mean']['k_space_real'])
-        # sigma_r = np.sqrt(np.float32(factors['variance']['k_space_real']))
-        #
-        # mu_i = np.float32(factors['mean']['k_space_imag'])
-        # sigma_i = np.sqrt(np.float32(factors['variance']['k_space_imag']))
-        #
-        # real_fft = (tf.squeeze(real) - mu_r) / sigma_r
-        # imag_fft = (tf.squeeze(imag) - mu_i) / sigma_i
-
         complex_k_space_label = tf.complex(real=tf.squeeze(real), imag=tf.squeeze(imag), name=name+"_complex_k_space")
         rec_image_complex = tf.expand_dims(tf.ifft2d(complex_k_space_label), axis=3)
-        # import pdb
-        # pdb.set_trace()
         rec_image = tf.reshape(tf.abs(rec_image_complex), shape=[-1, 256, 256, 1])
 
         # Shifting
