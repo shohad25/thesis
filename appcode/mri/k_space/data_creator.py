@@ -9,7 +9,7 @@ from appcode.mri.k_space.files_info import get_file_info
 from common.files_IO.file_handler import FileHandler
 import matplotlib.pyplot as plt
 from common.viewers.imshow import imshow
-
+import random
 # MAX_IM_VAL = 2.0**16 - 1
 
 
@@ -75,15 +75,25 @@ class DataCreator:
 
                 # Subsample with factor = factor
                 factor = 2
-                for mask_type in range(0,2):
-                    
+                for mask_type in range(0, 2):
+                # for mask_type in [0, 1, 2]:
                     # Create mask
-                    mask = get_random_mask(w, h, factor=factor, start_line=mask_type)
+                    mask = get_random_mask(w, h, factor=factor, start_line=mask_type, keep_center=0.0)
+                    # mask = get_random_mask(w, h, factor=factor, start_line=mask_type, keep_center=0.1)
+                    # mask = np.zeros((h, w), dtype=np.uint8)
+                    # x_rand = random.random()
+                    # y_rand = random.random()
+                    # movi_x = int(10*x_rand - 5)
+                    # movi_y = int(10*y_rand - 5)
+                    # mask[96+movi_x:160+movi_x, :] = 1
 
                     # Get sub-sampled images, currently only on h axis
                     dummy_image_2d = get_subsample(dummy_image_2d_gt, mask, factor_h=factor, factor_w=1)
                     k_space_real = get_subsample(k_space_real_gt, mask, factor_h=factor, factor_w=1)
                     k_space_imag = get_subsample(k_space_imag_gt, mask, factor_h=factor, factor_w=1)
+                    # dummy_image_2d = get_subsample(dummy_image_2d_gt, mask, factor_h=factor, factor_w=1, force_width=256)
+                    # k_space_real = get_subsample(k_space_real_gt, mask, factor_h=factor, factor_w=1, force_width=256)
+                    # k_space_imag = get_subsample(k_space_imag_gt, mask, factor_h=factor, factor_w=1, force_width=256)
 
                     # Dump example
                     meta_data_to_write = self.create_meta_data(meta_data, case_name, z, factor, norm_factor)
@@ -174,7 +184,7 @@ def get_random_mask(w, h, factor, start_line=0, keep_center=0):
     return mask
 
 
-def get_subsample(image, mask, factor_h, factor_w):
+def get_subsample(image, mask, factor_h, factor_w, force_width=None):
     """
     Get sub-sample image according to mask
     :param mask: bool image
@@ -193,7 +203,26 @@ def get_subsample(image, mask, factor_h, factor_w):
 
     # Sub-sample and reshape
     im_sub = image[np.where(mask==1)]
-    im_sub_reshaped = im_sub.reshape(h_new, w_new)
+
+    if force_width is not None:
+        im_sub_reshaped = im_sub.reshape(-1, force_width)
+    else:
+        im_sub_reshaped = im_sub.reshape(h_new, w_new)
+
+    return im_sub_reshaped
+
+def get_subsample_forced(image, mask, force_width=None):
+    """
+    Get sub-sample image according to mask
+    :param mask: bool image
+    :param image: original image
+    :return: sub-sampled image
+    """
+    # Sub-sample and reshape
+    batch_size = image.shape[0]
+    im_sub = image[:, mask > 0]
+    if force_width is not None:
+        im_sub_reshaped = im_sub.reshape(batch_size, -1, force_width)
 
     return im_sub_reshaped
 
