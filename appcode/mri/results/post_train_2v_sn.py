@@ -29,16 +29,6 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
     :param show: show flag
     :return:
     """
-    #
-    # mu_r = np.float32(data_factors['mean']['k_space_real'])
-    # sigma_r = np.sqrt(np.float32(data_factors['variance']['k_space_real']))
-    # # norm_r = lambda x: (x * sigma_r) + mu_r
-    # norm_r = lambda x: (x - mu_r) / sigma_r
-    #
-    # mu_i = np.float32(data_factors['mean']['k_space_imag'])
-    # sigma_i = np.sqrt(np.float32(data_factors['variance']['k_space_imag']))
-    # # norm_i = lambda x: (x * sigma_i) + mu_i
-    # norm_i = lambda x: (x - mu_i) / sigma_i
 
     method = 'bilinear'
     predict_info = {'width': w, 'height': h, 'channels': 1, 'dtype': 'float32'}
@@ -98,7 +88,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
 
             # Network predicted model 1
             name_1 = real_p.keys()[0]
-            # sigma = 1.0
+            # sigma = 0.5
             # Apply low pass
             # real_p[name_1] = ndimage.gaussian_filter(real_p[name_1], sigma)
             # imag_p[name_1] = ndimage.gaussian_filter(imag_p[name_1], sigma)
@@ -150,10 +140,18 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
 if __name__ == '__main__':
     data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
     #
-    predict = {'ver1': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/',
-               'ver2' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/',
-               'interp': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/000000.interp.bin'
+    # predict = {'140_lines': '/home/ohadsh/Downloads/temp/',
+    #            '128': '/home/ohadsh/Downloads/temp/',
+    #            '140_lines_slim' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/NO_NORM/2017_03_06_140_slim/predict/train',
+    #            'interp': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/000000.interp.bin'
+               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+               # }
+
+    predict = {'128_03_09': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09/predict/train/',
+               '128_03_05': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/',
+               'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
                }
+
     w = 256
     h = 256
     tt = 'train'
