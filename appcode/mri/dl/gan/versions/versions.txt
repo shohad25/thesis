@@ -2,3 +2,4 @@ ver1 - Encoder network, L2 loss
 ver2 - Encoder network, L2 loss, Weaker discriminator, deconv+ l1
 ver3 - multi-channel, L1, weaker discriminator
 ver4 - zeroPadding, mask = get_random_mask(w=256, h=256, factor=5, start_line=movi_x, keep_center=0.2)
+ver5 - zeroPadding,  mask as in ver4, add bias to images in order to have zero meaning, 

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.utils import get_image_from_kspace, interpolated_missing_samples, zero_padding
 from common.files_IO.file_handler import FileHandler
+from appcode.mri.k_space.data_creator import get_random_mask, get_subsample
 from common.viewers.imshow import imshow
 file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt', 'mask', 'k_space_real', 'k_space_imag']
 mini_batch = 50
@@ -17,6 +18,11 @@ base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
 with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
 
+keep_center = 0.2
+DIMS_IN = np.array([256, 256, 1])
+DIMS_OUT = np.array([256, 256, 1])
+sampling_factor = 5
+start_line = 0
 
 def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
     """
@@ -65,7 +71,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
         real_interp = mc_interp[:,0,:,:]
         imag_interp = mc_interp[:,1,:,:]
 
-        for i in range(0, real_interp.shape[0]):
+        for i in range(0, data["k_space_real_gt"].shape[0]):
 
             # Original image
             k_space_real_gt = data["k_space_real_gt"][i,:,:]
@@ -74,17 +80,20 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False):
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
             # Interpolation
-            # mask = np.zeros_like(data["mask"][i,:,:])
-            # mask[100:150,:] = 1.0
+            mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+            reduction = np.sum(mask) / float(mask.ravel().shape[0])
+            print (reduction)
+            k_space_real_gt_int = data["k_space_real_gt"][i,:,:] * mask
+            k_space_imag_gt_int = data["k_space_imag_gt"][i,:,:] * mask
 
-            # Apply low pass
-            # sigma = 0.5
-            # real_interp2 = ndimage.gaussian_filter(real_interp, sigma)
-            # imag_interp2 = ndimage.gaussian_filter(imag_interp, sigma)
-            # real_interp = real_interp * mask.T
-            # imag_interp = imag_interp * mask.T
-            rec_image_interp = get_image_from_kspace(real_interp, imag_interp)[i,:,:].T
-            k_space_amp_interp = np.log(1+np.sqrt(real_interp**2 + imag_interp**2))[i,:,:].T
+            # for line in range(0,255):
+            #     missing_line = np.all(mask[line, :] == 0)
+            #     if missing_line:
+            #         k_space_real_gt_int[line, :] = 0.5*(k_space_real_gt_int[line-1, :] + k_space_real_gt_int[line+1, :])
+            #         k_space_imag_gt_int[line, :] = 0.5*(k_space_imag_gt_int[line-1, :] + k_space_imag_gt_int[line+1, :])
+            k_space_amp_interp = np.log(1+np.sqrt(k_space_real_gt_int**2 + k_space_imag_gt_int**2))
+            rec_image_interp = get_image_from_kspace(k_space_real_gt_int,k_space_imag_gt_int)
+
 
             # Network predicted model 1
             name_1 = real_p.keys()[0]
@@ -149,6 +158,11 @@ if __name__ == '__main__':
 
     predict = {'128_03_09': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09/predict/train/',
                '128_03_05': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/',
+               'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+               }
+
+    predict = {'2017_03_09_ver5_lr_l2': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09/predict/train/',
+               '2017_03_09_ver5': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver5/predict/train',
                'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
                }
 
