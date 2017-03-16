@@ -18,6 +18,8 @@ x_r_var = []
 x_i_var = []
 y_r_var = []
 y_i_var = []
+y_r_min = []
+y_i_min = []
 
 data_set_tt = getattr(data_set, tt)
 while data_set_tt.epoch == 0:
@@ -32,6 +34,9 @@ while data_set_tt.epoch == 0:
         y_r_avg.append(y_input[0][:,:,:,0].mean())
         y_i_avg.append(y_input[0][:,:,:,1].mean())
 
+        y_r_min.append(y_input[0][:,:,:,0].min())
+        y_i_min.append(y_input[0][:,:,:,1].min())
+
         x_r_var.append(x_input[0][:,:,:,0].var())
         x_i_var.append(x_input[0][:,:,:,1].var())
         y_r_var.append(y_input[0][:,:,:,0].var())
@@ -44,6 +49,9 @@ print "x_real_mean: " + str(np.array(x_r_avg).mean())
 print "x_imag_mean: " + str(np.array(x_i_avg).mean())
 print "y_real_mean: " + str(np.array(y_r_avg).mean())
 print "y_imag_mean: " + str(np.array(y_i_avg).mean())
+
+print "y_real_min: " + str(np.array(y_r_avg).min())
+print "y_imag_min: " + str(np.array(y_i_avg).min())
 
 print "x_real_var: " + str(np.array(x_r_var).mean())
 print "x_imag_var: " + str(np.array(x_i_var).mean())

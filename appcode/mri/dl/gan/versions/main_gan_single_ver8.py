@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_subsample_forced
-from appcode.mri.dl.gan.versions.k_space_gan_single_ver6 import KSpaceSuperResolutionGAN
+from appcode.mri.dl.gan.versions.k_space_gan_single_ver8 import KSpaceSuperResolutionGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -55,16 +55,24 @@ flags.DEFINE_integer('num_gen_updates', 20, 'Print train frequency')
 flags.DEFINE_boolean('to_show', False, 'View data')
 flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
 
-keep_center = 0.2
+# keep_center = 0.2
+# DIMS_IN = np.array([256, 256, 1])
+# DIMS_OUT = np.array([256, 256, 1])
+# sampling_factor = 2
+
+# keep_center = 0.1
+# DIMS_IN = np.array([256, 256, 1])
+# DIMS_OUT = np.array([256, 256, 1])
+# sampling_factor = 3
+
+keep_center = 0.01
 DIMS_IN = np.array([256, 256, 1])
 DIMS_OUT = np.array([256, 256, 1])
 sampling_factor = 2
 
-# keep_center = 0.1
-# DIMS_IN = np.array([140, 256, 1])
-# DIMS_OUT = np.array([256, 256, 1])
-# sampling_factor = 2
-#
+# os.environ["CUDA_VISIBLE_DEVICES"]=""
+# print("Visible gpus = %s" % os.environ["CUDA_VISIBLE_DEVICES"])
+
 # flags.DEFINE_string('train_dir', args.train_dir,
 #                            """Directory where to write event logs """
                            # """and checkpoint.""")
@@ -325,7 +333,7 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                              tt=tt, batch_size=FLAGS.mini_batch_size)
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
-                predict, result, x_interp = sess.run([net.conv_6, net.evaluation, net.x_input_upscale], feed_dict=feed)
+                predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
 
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
