@@ -10,7 +10,8 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.dl.gan.k_space_gan_interp import KSpaceSuperResolutionGAN
+from appcode.mri.k_space.data_creator import get_random_mask, get_subsample_forced
+from appcode.mri.dl.gan.k_space_gan_single import KSpaceSuperResolutionGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -20,39 +21,50 @@ import json
 from collections import defaultdict
 import shutil
 import inspect
+import random
 
 # k space data set on loca SSD
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-print("working on 140 lines images")
-base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
-file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+# print("working on 140 lines images")
+# base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
+# file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
-flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
+# flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
+flags.DEFINE_integer('mini_batch_size', 5, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
-flags.DEFINE_float('gen_loss_adversarial', 1.0, 'Generative loss, adversarial weight.')
+# flags.DEFINE_float('gen_loss_adversarial', 1.0, 'Generative loss, adversarial weight.')
+flags.DEFINE_float('gen_loss_adversarial', 0.1, 'Generative loss, adversarial weight.')
 flags.DEFINE_integer('iters_no_adv', 1, 'Iters with adv_w=0')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 100, 'Print train frequency')
+flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
 
-flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
+flags.DEFINE_integer('num_gen_updates', 20, 'Print train frequency')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
+flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
 
 
-DIMS_IN = np.array([140, 256, 2])
-DIMS_OUT = np.array([256, 256, 2])
+keep_center = 0
+DIMS_IN = np.array([128, 256, 1])
+DIMS_OUT = np.array([256, 256, 1])
+sampling_factor = 2
 
-
+# keep_center = 0.1
+# DIMS_IN = np.array([140, 256, 1])
+# DIMS_OUT = np.array([256, 256, 1])
+# sampling_factor = 2
+#
 # flags.DEFINE_string('train_dir', args.train_dir,
 #                            """Directory where to write event logs """
                            # """and checkpoint.""")
@@ -84,24 +96,33 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
         t_phase = False
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
-    # Normalize data
-    mu_r = np.float32(data_factors['mean'][file_names['x_r']])
-    sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['x_r']]))
-    norm_r = lambda x: (x - mu_r) / sigma_r
+    real = next_batch[file_names['y_r']]
+    imag = next_batch[file_names['y_i']]
 
-    mu_i = np.float32(data_factors['mean'][file_names['x_i']])
-    sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['x_i']]))
-    norm_i = lambda x: (x - mu_i) / sigma_i
+    if len(real) == 0 or len(imag) == 0:
+        return None
 
-    y_in = np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3)
-    # d_in = y_in.copy()
-    # Feed input as multi-channel: [0: real, 1: imaginary]
-    feed = {x_input: np.concatenate((norm_r(next_batch[file_names['x_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['x_i']][:, :, :, np.newaxis])), 3),
-            y_input: y_in,
+    start_line = 0 if random.random() > 0.5 else 1
+
+    mask = get_random_mask(w=DIMS_OUT[0], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+
+    feed = {x_input['real']: get_subsample_forced(image=real, mask=mask, force_width=256),
+            x_input['imag']: get_subsample_forced(image=imag, mask=mask, force_width=256),
+            y_input['real']: real[:,:,:,np.newaxis],
+            y_input['imag']: imag[:,:,:,np.newaxis],
+            y_input['mask']: mask[np.newaxis, :, :, np.newaxis],
             train_phase: t_phase
-            }
+           }
+
+    # real = feed[x_input['real']][5, :, :]
+    # imag = feed[x_input['imag']][5, :, :]
+    #
+    # from appcode.mri.k_space.utils import get_image_from_kspace
+    # import matplotlib.pyplot as plt
+    # rec = get_image_from_kspace(real, imag)
+    # plt.imshow(rec, cmap='gray'); plt.show()
+    # import pdb
+    # pdb.set_trace()
     return feed
 
 
@@ -121,6 +142,7 @@ def run_evaluation(sess, feed, net, step, writer, tt):
 
     r_g, r_d, loss_d_fake, loss_d_real, loss_d, loss_g, l2_norm = sess.run([m_op_g, m_op_d, net.d_loss_fake, net.d_loss_real,
                                                                    net.d_loss, net.g_loss, net.evaluation], feed_dict=feed)
+
     writer['G'].add_summary(r_g, step)
     writer['D'].add_summary(r_d, step)
 
@@ -146,8 +168,18 @@ def load_graph():
     :return:
     """
     # Init inputs as placeholders
-    x_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_IN), name='x_input')
-    y_input = tf.placeholder(tf.float32, shape=[None] + list(DIMS_OUT), name='y_input')
+    x_input = {'real': tf.placeholder(tf.float32, shape=[None, DIMS_IN[0], DIMS_IN[1]], name='x_input_real'),
+               'imag': tf.placeholder(tf.float32, shape=[None, DIMS_IN[0], DIMS_IN[1]], name='x_input_imag')}
+    y_input = {'real': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1],1], name='y_input_real'),
+               'imag': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1],1], name='y_input_imag'),
+               'mask': tf.placeholder(tf.float32, shape=[1, DIMS_OUT[0], DIMS_OUT[1], 1], name='mask')}
+
+    tf.add_to_collection("placeholders", x_input['real'])
+    tf.add_to_collection("placeholders", x_input['imag'])
+    tf.add_to_collection("placeholders", y_input['real'])
+    tf.add_to_collection("placeholders", y_input['imag'])
+    tf.add_to_collection("placeholders", y_input['mask'])
+
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
     network = KSpaceSuperResolutionGAN(input=x_input, labels=y_input, dims_in=DIMS_IN,
@@ -181,30 +213,31 @@ def train_model(mode, checkpoint=None):
 
     if mode == 'resume':
         saver.restore(sess, checkpoint)
+        start_iter = int(checkpoint.split('-')[-1])
         # saver.restore(sess, tf.train.latest_checkpoint(checkpoint))
     else:
         sess.run(init)
+        start_iter = 0
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
     gen_loss_adversarial = 0.0
     # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
-
+    print("Starting at iteration number: %d " % start_iter)
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
-    for i in range(1, FLAGS.max_steps):
+    for i in range(start_iter, FLAGS.max_steps):
 
         if i % FLAGS.iters_no_adv == 0:
-            gen_loss_adversarial = 0.1
-            # print("Changing adv loss to be %f" % gen_loss_adversarial)
+            gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt='test', batch_size=FLAGS.mini_batch_size)
-            feed[net.adv_loss_w] = gen_loss_adversarial
-            if len(feed[net.input]):
+            if feed is not None:
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
 
@@ -212,10 +245,8 @@ def train_model(mode, checkpoint=None):
             # Training
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
-            feed[net.adv_loss_w] = gen_loss_adversarial
-            # sess.run([merged], feed_dict=feed)
-            if len(feed[net.input]):
-
+            if feed is not None:
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 # Update D network
                 if k % FLAGS.num_gen_updates == 0:
                     _, d_loss_fake, d_loss_real, d_loss = \
@@ -269,22 +300,29 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     all_acc = []
     predict_counter = 0
     if output_file is not None:
-        f_out = open(output_file, 'w')
+        f_out_real = open(os.path.join(output_file, "000000.predict_real.bin"), 'w')
+        f_out_imag = open(os.path.join(output_file, "000000.predict_imag.bin"), 'w')
     if output_file_interp is not None:
-        f_interp = open(output_file_interp, 'w')
+        f_interp = open(os.path.join(output_file_interp, "000000.interp.bin"), 'w')
+
+    gen_loss_adversarial = 1.0
 
     print("Evaluate Model using checkpoint: %s, data=%s" % (checkpoint, tt))
     while data_set_tt.epoch == 0:
             # Running over all data until epoch > 0
             feed = feed_data(data_set, net.input, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if len(feed[net.input]):
+                             tt=tt, batch_size=FLAGS.mini_batch_size)
+            if feed is not None:
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
+
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:
-                    f_out.write(predict.ravel())
-                    f_interp.write(x_interp.ravel())
+                    f_out_real.write(predict['real'].ravel())
+                    f_out_imag.write(predict['imag'].ravel())
+                if output_file_interp is not None:
+                    f_interp.write(np.concatenate([x_interp['real'], x_interp['imag']], axis=3).ravel())
 
             predict_counter += FLAGS.mini_batch_predict
             print("Done - " + str(predict_counter))
@@ -294,7 +332,9 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
             # break
 
     if output_file is not None:
-        f_out.close()
+        f_out_real.close()
+        f_out_imag.close()
+    if output_file_interp is not None:
         f_interp.close()
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
@@ -319,6 +359,7 @@ if __name__ == '__main__':
     parser.add_argument('--tt', dest='tt', choices=['train', 'test'], type=str, help='train / test')
     parser.add_argument('--train_dir', dest='train_dir', default='', type=str, help='training directory')
     parser.add_argument('--checkpoint', dest='checkpoint', type=str, help='checkpoint full path')
+    parser.add_argument('--num_gen_updates', dest='num_gen_updates', type=int, help='num_gen_updates')
     parser.add_argument('--output_file', dest='output_file', default=None, type=str, help='Output file for predict')
     parser.add_argument('--output_file_interp', dest='output_file_interp', default=None, type=str, help='Output file for interpolation output')
     args = parser.parse_args()

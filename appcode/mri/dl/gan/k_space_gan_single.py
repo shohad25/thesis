@@ -16,7 +16,9 @@ class KSpaceSuperResolutionGAN(BasicModel):
         :param dims_in:
         :param dims_out:
         """
-        BasicModel.__init__(self, input=input, labels=labels, dims_in=dims_in, dims_out=dims_out)
+        BasicModel.__init__(self, input=labels, labels=labels, dims_in=dims_in, dims_out=dims_out)
+        self.input = labels
+        print("Input is y label")
         # HACK
         self.input_d = labels
         # HACK
@@ -85,120 +87,132 @@ class KSpaceSuperResolutionGAN(BasicModel):
         """
         Define the model
         """
+        mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
+        # Create the inputs
+        x_imag_offset = (self.input['imag'] + self.input['imag_min'])
+        x_real = self.input['real'] * self.input['mask']
+        x_imag = self.input['imag'] * self.input['mask']
 
-        # Dump input image out
-        x_real = tf.reshape(self.input['real'], [-1, self.dims_in[0], self.dims_in[1], self.dims_in[2]], name='x_real')
-        x_imag = tf.reshape(self.input['imag'], [-1, self.dims_in[0], self.dims_in[1], self.dims_in[2]], name='x_imag')
+        in_shape = x_real.get_shape().as_list()
+        in_shape = [self.FLAGS.mini_batch_size, in_shape[1], in_shape[2], in_shape[3]]
+
+        noise_real = mask_not * tf.random_uniform(shape=in_shape, minval=0, maxval=1.0, dtype=tf.float32, seed=None, name='z_real')
+        noise_imag = mask_not * tf.random_uniform(shape=in_shape, minval=0, maxval=1.0, dtype=tf.float32, seed=None, name='z_imag')
+
+        x_real += noise_real
+        x_imag += noise_imag
 
         if self.FLAGS.dump_debug:
             tf.summary.image('G_x_input_real', x_real, collections='G', max_outputs=2)
             tf.summary.image('G_x_input_imag', x_imag, collections='G', max_outputs=2)
+            tf.summary.image('G_mask', self.labels['mask'], collections='G', max_outputs=1)
+            in1 = x_real
+            in2 = x_imag
+            tf.summary.image('G_reconstruct_zeroPadding', self.get_reconstructed_image(real=in1,
+                                imag=in2, name='rec_zeroPadding'), collections='G', max_outputs=2)
 
-        tf.summary.image('G_mask', self.labels['mask'], collections='G', max_outputs=1)
-
-        # Apply image resize
-        x_real_upscale = tf.image.resize_bilinear(x_real, np.array([self.dims_out[0],self.dims_out[1]]), align_corners=None, name='x_real_upscale')
-        x_imag_upscale = tf.image.resize_bilinear(x_imag, np.array([self.dims_out[0],self.dims_out[1]]), align_corners=None, name='x_real_upscale')
-
-        self.x_input_upscale['real'] = x_real_upscale
-        self.x_input_upscale['imag'] = x_imag_upscale
-        # Apply image resize for debugging
-        # self.x_input_upscale = tf.image.resize_bilinear(self.input, np.array([self.dims_out[0],
-        #                                                               self.dims_out[1]]), align_corners=None,
-        #                                                 name='G_x_input_upscale_iamg')
+        self.x_input_upscale['real'] = x_real
+        self.x_input_upscale['imag'] = x_imag
 
         # Model convolutions
-        with tf.name_scope('real'):
-            out_dim = 8
-            self.conv_1, reg_1 = ops.conv2d(x_real_upscale, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
-            self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
-            self.relu_1 = tf.nn.relu(self.conv_1_bn)
-            self.regularization_values.append(reg_1)
+        # with tf.name_scope('real'):
+        out_dim = 16
+        x_input_stack = tf.stack([x_real[:,:,:,0], x_imag[:,:,:,0]], axis=3)
+        # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
+        self.conv_1, reg_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
+        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
+        self.relu_1 = tf.nn.relu(self.conv_1_bn)
+        self.regularization_values.append(reg_1)
 
-            # deconv for get bigger image
-            out_dim = 16
-            self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
-            self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
-            self.relu_2 = tf.nn.relu(self.conv_2_bn)
-            self.regularization_values.append(reg_2)
+        out_dim = 32
+        self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
+        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
+        self.relu_2 = tf.nn.relu(self.conv_2_bn)
+        self.regularization_values.append(reg_2)
 
-            out_dim = 32
-            self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
-            self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
-            self.relu_3 = tf.nn.relu(self.conv_3_bn)
-            self.regularization_values.append(reg_3)
-
-
-            out_dim = 16
-            self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
-            self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
-            self.relu_4 = tf.nn.relu(self.conv_4_bn)
-            self.regularization_values.append(reg_4)
-
-            out_dim = 8
-            self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
-            self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5")
-            self.relu_5 = tf.nn.relu(self.conv_5_bn)
-            self.regularization_values.append(reg_5)
-
-            out_dim = 1
-            self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
-            self.regularization_values.append(reg_6)
-
-        # ## IMAGe
-        # # Model convolutions
-        with tf.name_scope('imaginary'):
-            out_dim = 8
-            self.conv_11, reg_11 = ops.conv2d(x_imag_upscale, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_11")
-            self.conv_11_bn = ops.batch_norm(self.conv_11, self.train_phase, decay=0.98, name="G_bn11")
-            self.relu_11 = tf.nn.relu(self.conv_11_bn)
-            self.regularization_values.append(reg_11)
-
-            # deconv for get bigger image
-            out_dim = 16
-            self.conv_22, reg_22 = ops.conv2d(self.relu_11, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_22")
-            self.conv_22_bn = ops.batch_norm(self.conv_22, self.train_phase, decay=0.98, name="G_bn22")
-            self.relu_22 = tf.nn.relu(self.conv_22_bn)
-            self.regularization_values.append(reg_22)
-
-            out_dim = 32
-            self.conv_33, reg_33 = ops.conv2d(self.relu_22, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_33")
-            self.conv_33_bn = ops.batch_norm(self.conv_33, self.train_phase, decay=0.98, name="G_bn33")
-            self.relu_33 = tf.nn.relu(self.conv_33_bn)
-            self.regularization_values.append(reg_33)
+        out_dim = 64
+        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
+        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
+        self.relu_3 = tf.nn.relu(self.conv_3_bn)
+        self.regularization_values.append(reg_3)
 
 
-            out_dim = 16
-            self.conv_44, reg_44 = ops.conv2d(self.relu_33, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_44")
-            self.conv_44_bn = ops.batch_norm(self.conv_44, self.train_phase, decay=0.98, name="G_bn44")
-            self.relu_44 = tf.nn.relu(self.conv_44_bn)
-            self.regularization_values.append(reg_44)
+        out_dim = 32
+        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
+        self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
+        self.relu_4 = tf.nn.relu(self.conv_4_bn)
+        self.regularization_values.append(reg_4)
 
-            out_dim = 8
-            self.conv_55, reg_55 = ops.conv2d(self.relu_44, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_55")
-            self.conv_55_bn = ops.batch_norm(self.conv_55, self.train_phase, decay=0.98, name="G_bn55")
-            self.relu_55 = tf.nn.relu(self.conv_55_bn)
-            self.regularization_values.append(reg_55)
+        out_dim = 8
+        self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
+        self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5")
+        self.relu_5 = tf.nn.relu(self.conv_5_bn)
+        self.regularization_values.append(reg_5)
 
-            out_dim = 1
-            self.conv_66, reg_66 = ops.conv2d(self.relu_55, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_66")
-            self.regularization_values.append(reg_66)
+        out_dim = 2
+        self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
+        self.regularization_values.append(reg_6)
             #
+        #
+        # # ## IMAGe
+        # # Model convolutions
+        # with tf.name_scope('imaginary'):
+        #     out_dim = 16
+        #     self.conv_11, reg_11 = ops.conv2d(x_imag, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_11")
+        #     self.conv_11_bn = ops.batch_norm(self.conv_11, self.train_phase, decay=0.98, name="G_bn11")
+        #     self.relu_11 = tf.nn.relu(self.conv_11_bn)
+        #     self.regularization_values.append(reg_11)
+        #
+        #     out_dim = 16
+        #     self.conv_22, reg_22 = ops.conv2d(self.relu_11, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_22")
+        #     self.conv_22_bn = ops.batch_norm(self.conv_22, self.train_phase, decay=0.98, name="G_bn22")
+        #     self.relu_22 = tf.nn.relu(self.conv_22_bn)
+        #     self.regularization_values.append(reg_22)
+        #
+        #     out_dim = 32
+        #     self.conv_33, reg_33 = ops.conv2d(self.relu_22, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_33")
+        #     self.conv_33_bn = ops.batch_norm(self.conv_33, self.train_phase, decay=0.98, name="G_bn33")
+        #     self.relu_33 = tf.nn.relu(self.conv_33_bn)
+        #     self.regularization_values.append(reg_33)
+        #
+        #
+        #     out_dim = 16
+        #     self.conv_44, reg_44 = ops.conv2d(self.relu_33, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_44")
+        #     self.conv_44_bn = ops.batch_norm(self.conv_44, self.train_phase, decay=0.98, name="G_bn44")
+        #     self.relu_44 = tf.nn.relu(self.conv_44_bn)
+        #     self.regularization_values.append(reg_44)
+        #
+        #     out_dim = 8
+        #     self.conv_55, reg_55 = ops.conv2d(self.relu_44, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_55")
+        #     self.conv_55_bn = ops.batch_norm(self.conv_55, self.train_phase, decay=0.98, name="G_bn55")
+        #     self.relu_55 = tf.nn.relu(self.conv_55_bn)
+        #     self.regularization_values.append(reg_55)
+        #
+        #     out_dim = 1
+        #     self.conv_66, reg_66 = ops.conv2d(self.relu_55, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_66")
+        #     self.regularization_values.append(reg_66)
 
         # stack = tf.squeeze(tf.stack([self.conv_6, self.conv_66], axis=3))
         predict = {}
-        predict['real'] = tf.reshape(self.conv_6, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
-        predict['imag'] = tf.reshape(self.conv_66, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
+        # predict['real'] = tf.reshape(self.conv_6, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
+        # predict['imag'] = tf.reshape(self.conv_66, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
+        predict['real'] = tf.reshape(self.conv_6[:,:,:,0], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
+        predict['imag'] = tf.reshape(self.conv_6[:,:,:,1], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
 
         # Masking
-        mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
         predict['real'] = tf.multiply(predict['real'], mask_not)
         predict['imag'] = tf.multiply(predict['imag'], mask_not)
 
-        # import pdb
-        # pdb.set_trace()
-        predict['real'] += tf.multiply(self.labels['real'], self.labels['mask'])
-        predict['imag'] += tf.multiply(self.labels['imag'], self.labels['mask'])
+        input_masked_real = tf.multiply(self.input['real'], self.labels['mask'], name='input_masked_real')
+        input_masked_imag = tf.multiply(self.input['imag'], self.labels['mask'], name='input_masked_imag')
+
+        with tf.name_scope("final_predict"):
+            predict['real'] = tf.add(predict['real'], input_masked_real, name='real')
+            predict['imag'] = tf.add(predict['imag'], input_masked_imag, name='imag')
+
+
+        tf.add_to_collection("predict", predict['real'])
+        tf.add_to_collection("predict", predict['imag'])
 
         # Dump prediction out
         if self.FLAGS.dump_debug:
@@ -206,6 +220,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
             tf.summary.image('G_predict_imag', predict['imag'], collections='G')
 
         # return tf.stack([predict['real'], predict['imag']], axis=3)
+
         return predict
 
     def __D__(self, input_d, input_type):
@@ -244,7 +259,8 @@ class KSpaceSuperResolutionGAN(BasicModel):
         self.relu_2_d = ops.lrelu(self.conv_2_bn_d)
         self.regularization_values_d.append(reg_2_d)
 
-        out_dim = 32  # 32x32
+        # out_dim = 32  # 32x32
+        out_dim = 8  # 32x32
         self.conv_3_d, reg_3_d = ops.conv2d(self.relu_2_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
                                             name="D_conv_3")
         self.pool_3_d = tf.nn.max_pool(self.conv_3_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
@@ -254,18 +270,19 @@ class KSpaceSuperResolutionGAN(BasicModel):
         self.relu_3_d = ops.lrelu(self.conv_3_bn_d)
         self.regularization_values_d.append(reg_3_d)
 
-        out_dim = 16  # 16x16
-        self.conv_4_d, reg_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
-                                            name="D_conv_4")
-        self.pool_4_d = tf.nn.max_pool(self.conv_4_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
-                                       name="D_pool_4")
-        self.conv_4_bn_d = ops.batch_norm(self.pool_4_d, self.train_phase, decay=0.98, name="D_bn4")
-        # self.relu_4_d = tf.nn.relu(self.conv_4_bn_d)
-        self.relu_4_d = ops.lrelu(self.conv_4_bn_d)
-        self.regularization_values_d.append(reg_4_d)
+        # out_dim = 16  # 16x16
+        # self.conv_4_d, reg_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
+        #                                     name="D_conv_4")
+        # self.pool_4_d = tf.nn.max_pool(self.conv_4_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
+        #                                name="D_pool_4")
+        # self.conv_4_bn_d = ops.batch_norm(self.pool_4_d, self.train_phase, decay=0.98, name="D_bn4")
+        # # self.relu_4_d = tf.nn.relu(self.conv_4_bn_d)
+        # self.relu_4_d = ops.lrelu(self.conv_4_bn_d)
+        # self.regularization_values_d.append(reg_4_d)
 
         out_dim = 1
-        self.affine_1_d = ops.linear(tf.contrib.layers.flatten(self.relu_4_d), output_size=out_dim, scope="D_affine_1")
+        self.affine_1_d = ops.linear(tf.contrib.layers.flatten(self.relu_3_d), output_size=out_dim, scope="D_affine_1")
+        # self.affine_1_d = ops.linear(tf.contrib.layers.flatten(self.relu_4_d), output_size=out_dim, scope="D_affine_1")
         predict_d = self.affine_1_d
         # Dump prediction out
 
@@ -307,10 +324,24 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
-        # Context loss
-        real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], self.labels['mask']))
-        imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], self.labels['mask']))
+        # Context loss L2
+        mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
+        real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], mask_not))
+        imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], mask_not))
         self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
+        print("You are using L2 loss")
+
+        # L1
+        # mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
+        # real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], mask_not))
+        # imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], mask_not))
+        # self.context_loss = tf.reduce_mean(tf.abs(real_diff) + tf.abs(imag_diff), name='Context_loss_mean')
+        # print("You are using L1 loss")
+
+        # L2, on FFT
+        # rec_diff = self.get_reconstructed_image(self.predict_g['real'], self.predict_g['imag'], name='1')\
+        #            - self.get_reconstructed_image(self.labels['real'], self.labels['imag'], name='2')
+        # self.context_loss = tf.reduce_mean(tf.square(rec_diff), name='Context_loss_mean')
 
         tf.summary.scalar('g_loss_context_only', self.context_loss, collections='G')
 

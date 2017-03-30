@@ -15,8 +15,10 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 
-file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt', 'mask': 'mask_low_pass_64'}
+file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt', 'mask': 'mask'}
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+# base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
 
 with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
@@ -81,33 +83,74 @@ def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10
         next_batch = copy.deepcopy(data_set.train.next_batch(batch_size))
         t_phase = True
     else:
-        # t_phase = False
-        print "HACK: use batch norm for test"
-        t_phase = True
+        t_phase = False
         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
 
     # Normalize data
-    mu_r = np.float32(data_factors['mean'][file_names['x_r']])
-    sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['x_r']]))
+    mu_r = np.float32(data_factors['mean'][file_names['y_r']])
+    sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['y_r']]))
     norm_r = lambda x: (x - mu_r) / sigma_r
 
-    mu_i = np.float32(data_factors['mean'][file_names['x_i']])
-    sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['x_i']]))
+    mu_i = np.float32(data_factors['mean'][file_names['y_i']])
+    sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['y_i']]))
     norm_i = lambda x: (x - mu_i) / sigma_i
 
-    y_in = np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3)
-    # d_in = y_in.copy()
+    real = norm_r(next_batch[file_names['y_r']])
+    imag = norm_i(next_batch[file_names['y_i']])
+    y_in = np.concatenate((real[:, :, :, np.newaxis], imag[:, :, :, np.newaxis]), 3)
+
+    x_in = np.concatenate(((real * next_batch[file_names['mask']])[:, :, :, np.newaxis],
+                           (imag * next_batch[file_names['mask']])[:, :, :, np.newaxis]), 3)
+
     # Feed input as multi-channel: [0: real, 1: imaginary]
-    feed = {x_input: np.concatenate((norm_r(next_batch[file_names['x_r']][:, :, :, np.newaxis]),
-                                     norm_i(next_batch[file_names['x_i']][:, :, :, np.newaxis])), 3),
+    feed = {x_input: x_in,
             y_input: y_in,
             train_phase: t_phase
             }
     return feed
+# def feed_data(data_set, x_input, y_input, train_phase, tt='train', batch_size=10):
+#     """
+#     Feed data into dictionary
+#     :param data_set: data set object
+#     :param x_input: x input placeholder list
+#     :param y_input: y input placeholder list
+#     :param tt: 'train' or 'test
+#     :param batch_size: number of examples
+#     :return:
+#     """
+#     if tt == 'train':
+#         next_batch = copy.deepcopy(data_set.train.next_batch(batch_size))
+#         t_phase = True
+#     else:
+#         # t_phase = False
+#         print "HACK: use batch norm for test"
+#         t_phase = True
+#         next_batch = copy.deepcopy(data_set.test.next_batch(batch_size))
+#
+#     # Normalize data
+#     mu_r = np.float32(data_factors['mean'][file_names['x_r']])
+#     sigma_r = np.sqrt(np.float32(data_factors['variance'][file_names['x_r']]))
+#     norm_r = lambda x: (x - mu_r) / sigma_r
+#
+#     mu_i = np.float32(data_factors['mean'][file_names['x_i']])
+#     sigma_i = np.sqrt(np.float32(data_factors['variance'][file_names['x_i']]))
+#     norm_i = lambda x: (x - mu_i) / sigma_i
+#
+#     y_in = np.concatenate((norm_r(next_batch[file_names['y_r']][:, :, :, np.newaxis]),
+#                                      norm_i(next_batch[file_names['y_i']][:, :, :, np.newaxis])), 3)
+#     # d_in = y_in.copy()
+#     # Feed input as multi-channel: [0: real, 1: imaginary]
+#     feed = {x_input: np.concatenate((norm_r(next_batch[file_names['x_r']][:, :, :, np.newaxis]),
+#                                      norm_i(next_batch[file_names['x_i']][:, :, :, np.newaxis])), 3),
+#             y_input: y_in,
+#             train_phase: t_phase
+#             }
+#     return feed
 
 if __name__ == '__main__':
 
+    # os.environ["CUDA_VISIBLE_DEVICES"]=""
+    # print("Visible gpus = %s" % os.environ["CUDA_VISIBLE_DEVICES"])
     parser = argparse.ArgumentParser(description='Main script for predict on trained model.')
     parser.add_argument('--tt', dest='tt', choices=['train', 'test'], type=str, help='train / test')
     parser.add_argument('--tensor_name', dest='tensor_name', default='predict', type=str, help='Output tensor name')

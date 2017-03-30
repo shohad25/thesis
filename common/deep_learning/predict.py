@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # # tf.app.run()
     # predict(args.data_dir, args.model, args.output_dir, args.tt, debug=args.debug)
     tt = 'test'
-    data_dir='/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/' 
+    data_dir='/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
     model='/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_02_06/model.ckpt-330000'
     output_dir='/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/runs/2016_02_06/'
     debug=False

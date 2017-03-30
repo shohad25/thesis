@@ -18,6 +18,7 @@ files_info = {"k_space_real":  {"width": 256, "height": 128, "channels": 1, "dty
               "image_gt":         {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
 
               "mask":          {"width": 256, "height": 256, "channels": 1, "dtype": np.uint8},
+              "mask_low_pass_64":          {"width": 256, "height": 256, "channels": 1, "dtype": np.uint8},
               "meta_data":     {"width": sizeof_meta_data, "height": 1,   "channels": 1, "dtype": np.float32}}
 
 

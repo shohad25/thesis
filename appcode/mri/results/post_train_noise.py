@@ -14,14 +14,9 @@ from scipy import ndimage
 from collections import defaultdict
 
 base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-# base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle'
 with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
 
-# keep_center = 0.1
-# DIMS_IN = np.array([256, 256, 1])
-# DIMS_OUT = np.array([256, 256, 1])
-# sampling_factor = 3
 start_line = 0    
 
 def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, keep_center=None, DIMS_IN=None, DIMS_OUT=None, sampling_factor=None):
@@ -53,7 +48,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     data_set = KspaceDataSet(data_dir, file_names, stack_size=50, shuffle=False)
 
     data_set_tt = getattr(data_set, tt)
-    fig, ax = plt.subplots(nrows=3, ncols=4)
+    fig, ax = plt.subplots(nrows=3, ncols=3)
     fig.set_size_inches(18.5, 10.5, forward=True)
     
     while data_set_tt.epoch == 0:
@@ -76,7 +71,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             # Original image
             k_space_real_gt = data["k_space_real_gt"][i,:,:]
             k_space_imag_gt = data["k_space_imag_gt"][i,:,:]
-            k_space_amp_gt = np.log(1+np.sqrt(k_space_real_gt**2 + k_space_imag_gt**2))
+            k_space_amp_gt = np.log(np.sqrt(k_space_real_gt**2 + k_space_imag_gt**2))
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
             # Interpolation
@@ -91,7 +86,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
                 if missing_line:
                     k_space_real_gt_int[line, :] = 0.5*(k_space_real_gt_int[line-1, :] + k_space_real_gt_int[line+1, :])
                     k_space_imag_gt_int[line, :] = 0.5*(k_space_imag_gt_int[line-1, :] + k_space_imag_gt_int[line+1, :])
-            k_space_amp_interp = np.log(1+np.sqrt(k_space_real_gt_int**2 + k_space_imag_gt_int**2))
+            k_space_amp_interp = np.log(np.sqrt(k_space_real_gt_int**2 + k_space_imag_gt_int**2))
             rec_image_interp = get_image_from_kspace(k_space_real_gt_int,k_space_imag_gt_int)
 
 
@@ -108,14 +103,14 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             # real_p[name_1] *= 1-mask.T
             # imag_p[name_1] *= 1-mask.T
             rec_image_1 = get_image_from_kspace(real_p[name_1], imag_p[name_1])[i,:,:].T
-            k_space_amp_predict_1 = np.log(1+np.sqrt(real_p[name_1]**2 + imag_p[name_1]**2))[i,:,:].T
 
-            # Network predicted model 2
-            name_2 = real_p.keys()[1]
-            # real_p[name_2] *= 1-mask.T
-            # imag_p[name_2] *= 1-mask.T
-            rec_image_2 = get_image_from_kspace(real_p[name_2], imag_p[name_2])[i,:,:].T
-            k_space_amp_predict_2 = np.log(1+np.sqrt(real_p[name_2]**2 + imag_p[name_2]**2))[i,:,:].T
+            # im_filter = np.zeros([256,256])
+            # filt_cord_y = 40
+            # filt_cord_x = 50
+            # im_filter[filt_cord_y:-filt_cord_y, filt_cord_x:-filt_cord_x] = 1
+            # rec_image_1 *= im_filter
+
+            k_space_amp_predict_1 = np.log(np.sqrt(real_p[name_1]**2 + imag_p[name_1]**2))[i,:,:].T
 
             ############ Original############
             ax[0][0].set_title('Original Image')
@@ -147,16 +142,6 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             ax[2][2].set_title('Diff-imag')
             ax[2][2].imshow(np.log(1+np.abs(rec_image_1 - org_image)), interpolation="none", cmap="gray")
 
-            ########### DNN 2 ############
-            ax[0][3].set_title('DNN Reconstructed Image  - ' + name_2)
-            ax[0][3].imshow(rec_image_2, interpolation="none", cmap="gray")
-
-            ax[1][3].set_title('DNN K-space - ' + name_2)
-            ax[1][3].imshow(k_space_amp_predict_2, interpolation="none", cmap="gray")
-
-            ax[2][3].set_title('Diff-imag')
-            ax[2][3].imshow(1+np.log(np.abs(rec_image_2 - org_image)), interpolation="none", cmap="gray")
-
             plt.draw()
 
             plt.waitforbuttonpress(timeout=-1)
@@ -165,63 +150,6 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
 
 if __name__ == '__main__':
     data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-    #
-    # predict = {'140_lines': '/home/ohadsh/Downloads/temp/',
-    #            '128': '/home/ohadsh/Downloads/temp/',
-    #            '140_lines_slim' : '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/NO_NORM/2017_03_06_140_slim/predict/train',
-    #            'interp': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/000000.interp.bin'
-               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               # }
-
-    predict = {'128_03_09': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09/predict/train/',
-               '128_03_05': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_05/predict/train/',
-               'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               }
-
-    # keep_center = 0.2
-    # DIMS_IN = np.array([256, 256, 1])
-    # DIMS_OUT = np.array([256, 256, 1])
-    # sampling_factor = 5
-    # start_line = 0
-    # predict = {'2017_03_09_ver5_lr_l2': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09/predict/train/',
-               # '2017_03_09_ver5': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver5/predict/train',
-               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               # }
-
-
-    # keep_center = 0.2
-    # DIMS_IN = np.array([256, 256, 1])
-    # DIMS_OUT = np.array([256, 256, 1])
-    # sampling_factor = 2
-    # predict = {'2017_03_09_ver6': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver6/predict/train/',
-               # '2017_03_09_ver6_no_content': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver6_no_content/predict/train/',
-               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               # }
-
-    # predict = {'2017_03_09_ver7': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7/predict/train/',
-               # '2017_03_09_ver6': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver6/predict/train/',
-               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               # }
-
-
-    # keep_center = 0.1
-    # DIMS_IN = np.array([256, 256, 1])
-    # DIMS_OUT = np.array([256, 256, 1])
-    # sampling_factor = 3
-    # predict = {'2017_03_09_ver7': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7/predict/train/',
-               # '2017_03_09_ver7_factor3': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7_factor3/predict/train',
-               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               # }
-
-    # keep_center = 0.01
-    # DIMS_IN = np.array([256, 256, 1])
-    # DIMS_OUT = np.array([256, 256, 1])
-    # sampling_factor = 2
-    
-    # predict = {'2017_03_09_ver7': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7/predict/train/',
-               # '2017_03_09_ver8': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver8/predict/train/',
-               # 'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
-               # }
 
     keep_center = 0.05
     DIMS_IN = np.array([256, 256, 1])
@@ -229,7 +157,6 @@ if __name__ == '__main__':
     sampling_factor = 2
 
     predict = {'2017_03_09_ver7_005': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7_factor_005/predict/train/',
-               '2017_03_09_ver8': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver8/predict/train/',
                'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
                }
     
