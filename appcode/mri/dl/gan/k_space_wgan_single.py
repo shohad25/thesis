@@ -4,7 +4,7 @@ from common.deep_learning.basic_model import BasicModel
 import common.deep_learning.ops as ops
 
 
-class KSpaceSuperResolutionGAN(BasicModel):
+class KSpaceSuperResolutionWGAN(BasicModel):
     """
     Represents k-space super resolution model
     """
@@ -62,6 +62,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         with tf.name_scope('D_'):
             self.predict, self.predict_logits = self.__D__([self.input_d, self.predict_g], input_type="Real")
+
             self.predict_d, self.predict_d_for_g = tf.split(value=self.predict, num_or_size_splits=2, axis=0)
             self.predict_d_logits, self.predict_d_logits_for_g = tf.split(value=self.predict_logits, num_or_size_splits=2, axis=0)
 
@@ -295,19 +296,19 @@ class KSpaceSuperResolutionGAN(BasicModel):
         """
         # regularization ?
 
-        self.d_loss_real = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d, targets=tf.ones_like(self.predict_d)))
-            # tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits,
-            #                                         labels=tf.ones_like(self.predict_d)))
+        # self.d_loss_real = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d, targets=tf.ones_like(self.predict_d)))
+        self.d_loss_real = tf.reduce_mean(self.predict_d_logits)
 
         tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
 
-        self.d_loss_fake = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.zeros_like(self.predict_d_for_g)))
-            # tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
-            #                                         labels=tf.zeros_like(self.predict_d_for_g)))
+        # self.d_loss_fake = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.zeros_like(self.predict_d_for_g)))
+        self.d_loss_fake = tf.reduce_mean(self.predict_d_logits_for_g)
 
         tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
-        self.d_loss = self.d_loss_real + self.d_loss_fake
+        # self.d_loss = self.d_loss_real + self.d_loss_fake
+        self.d_loss = self.d_loss_fake - self.d_loss_real
+
         tf.summary.scalar('d_loss', self.d_loss, collections='D')
 
         if len(self.regularization_values_d) > 0:
@@ -318,9 +319,8 @@ class KSpaceSuperResolutionGAN(BasicModel):
                 tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
 
         # Generative loss
-        g_loss = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
-            # tf.nn.sigmoid_cross_entropy_with_logits(logits=self.predict_d_logits_for_g,
-            #                                         labels=tf.ones_like(self.predict_d_for_g)))
+        # g_loss = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
+        g_loss = -tf.reduce_mean(self.predict_d_logits_for_g)
 
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
@@ -330,18 +330,6 @@ class KSpaceSuperResolutionGAN(BasicModel):
         imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], mask_not))
         self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
         print("You are using L2 loss")
-
-        # L1
-        # mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
-        # real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], mask_not))
-        # imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], mask_not))
-        # self.context_loss = tf.reduce_mean(tf.abs(real_diff) + tf.abs(imag_diff), name='Context_loss_mean')
-        # print("You are using L1 loss")
-
-        # L2, on FFT
-        # rec_diff = self.get_reconstructed_image(self.predict_g['real'], self.predict_g['imag'], name='1')\
-        #            - self.get_reconstructed_image(self.labels['real'], self.labels['imag'], name='2')
-        # self.context_loss = tf.reduce_mean(tf.square(rec_diff), name='Context_loss_mean')
 
         tf.summary.scalar('g_loss_context_only', self.context_loss, collections='G')
 
@@ -358,6 +346,14 @@ class KSpaceSuperResolutionGAN(BasicModel):
 
         tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G')
 
+    def __clip_weights__(self):
+        clip_ops = []
+        t_vars = tf.trainable_variables()
+        for var in t_vars:
+            if 'D_' in var.name:
+                clip_ops.append(tf.assign(var, tf.clip_by_value(var, -0.01, 0.01)))
+        return tf.group(*clip_ops)
+
     def __training__(self, learning_rate):
         """
         :param learning_rate:
@@ -368,9 +364,9 @@ class KSpaceSuperResolutionGAN(BasicModel):
         self.d_vars = [var for var in t_vars if 'D_' in var.name]
         self.g_vars = [var for var in t_vars if 'G_' in var.name]
 
-        # Create Adam optimizer with the given learning rate.
-        optimizer_d = tf.train.AdamOptimizer(learning_rate)
-        optimizer_g = tf.train.AdamOptimizer(learning_rate)
+        # Create RMSProb optimizer with the given learning rate.
+        optimizer_d = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
+        optimizer_g = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
 
         # Create a variable to track the global step.
         global_step_d = tf.Variable(0, name='global_step_d', trainable=False)

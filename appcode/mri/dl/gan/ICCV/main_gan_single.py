@@ -10,8 +10,8 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask
-from appcode.mri.dl.gan.k_space_gan_single import KSpaceSuperResolutionGAN
+from appcode.mri.k_space.data_creator import get_random_mask, get_subsample_forced
+from appcode.mri.dl.gan.ICCV.k_space_gan_single import KSpaceSuperResolutionGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -66,8 +66,8 @@ flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
 # sampling_factor = 3
 
 keep_center = 0.05
-DIMS_IN = np.array([1, 256, 256])
-DIMS_OUT = np.array([1, 256, 256])
+DIMS_IN = np.array([256, 256, 1])
+DIMS_OUT = np.array([256, 256, 1])
 sampling_factor = 2
 
 # flags.DEFINE_string('train_dir', args.train_dir,
@@ -107,14 +107,18 @@ def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     if len(real) == 0 or len(imag) == 0:
         return None
 
-    # start_line = int(10*random.random() - 5)
-    # mask = get_random_mask(w=DIMS_OUT[1], h=DIMS_OUT[2], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+    start_line = int(10*random.random() - 5)
 
-    mask = get_random_gaussian_mask(im_shape=(DIMS_OUT[1], DIMS_OUT[2]), peak_probability=0.7, std=45.0, keep_center=0.05)
+    mask = get_random_mask(w=DIMS_OUT[0], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
 
-    feed = {y_input['real']: real[:,:,:,np.newaxis].transpose(0,3,1,2),
-            y_input['imag']: imag[:,:,:,np.newaxis].transpose(0,3,1,2),
-            y_input['mask']: mask[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
+    real_mini = np.min(real,axis=(1,2))
+    imag_mini = np.min(imag,axis=(1,2))
+
+    feed = {y_input['real']: real[:,:,:,np.newaxis],
+            y_input['imag']: imag[:,:,:,np.newaxis],
+            y_input['mask']: mask[np.newaxis, :, :, np.newaxis],
+            y_input['real_min']: real_mini[:, np.newaxis, np.newaxis, np.newaxis],
+            y_input['imag_min']: imag_mini[:, np.newaxis, np.newaxis, np.newaxis],
             train_phase: t_phase
            }
 
@@ -172,9 +176,11 @@ def load_graph():
     :return:
     """
     # Init inputs as placeholders
-    y_input = {'real': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='y_input_real'),
-               'imag': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='y_input_imag'),
-               'mask': tf.placeholder(tf.float32, shape=[1, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='mask')}
+    y_input = {'real': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1],1], name='y_input_real'),
+               'imag': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1],1], name='y_input_imag'),
+               'mask': tf.placeholder(tf.float32, shape=[1, DIMS_OUT[0], DIMS_OUT[1], 1], name='mask'),
+               'real_min': tf.placeholder(tf.float32, shape=[None, 1,1,1], name='real_min'),
+               'imag_min': tf.placeholder(tf.float32, shape=[None, 1,1,1], name='imag_min')}
 
     tf.add_to_collection("placeholders", y_input['real'])
     tf.add_to_collection("placeholders", y_input['imag'])

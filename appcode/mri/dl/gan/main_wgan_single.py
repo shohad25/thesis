@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask
-from appcode.mri.dl.gan.k_space_gan_single import KSpaceSuperResolutionGAN
+from appcode.mri.dl.gan.k_space_wgan_single import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -34,7 +34,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
+flags.DEFINE_float('learning_rate', 0.00005, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 # flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_size', 5, 'Size of mini batch')
@@ -47,10 +47,10 @@ flags.DEFINE_integer('iters_no_adv', 1, 'Iters with adv_w=0')
 
 # flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 # flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
-flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
-flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
+flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
+flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
-flags.DEFINE_integer('num_gen_updates', 20, 'Print train frequency')
+flags.DEFINE_integer('num_D_updates', 5, 'Discriminator update freq')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
@@ -182,7 +182,7 @@ def load_graph():
 
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
-    network = KSpaceSuperResolutionGAN(input=None, labels=y_input, dims_in=DIMS_IN,
+    network = KSpaceSuperResolutionWGAN(input=None, labels=y_input, dims_in=DIMS_IN,
                                       dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w)
     network.build()
     return network
@@ -253,12 +253,11 @@ def train_model(mode, checkpoint=None):
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
                 # Update D network
-                if k % FLAGS.num_gen_updates == 0:
+                for it in np.arange(FLAGS.num_D_updates):
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    k = 1
-                else:
-                    k += 1
+                    _ = sess.run([net.__clip_weights__()])
+
                 # Update G network
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
@@ -340,7 +339,7 @@ def main(args):
 
     # Copy scripts to training dir
     shutil.copy(os.path.abspath(__file__), args.train_dir)
-    shutil.copy(inspect.getfile(KSpaceSuperResolutionGAN), args.train_dir)
+    shutil.copy(inspect.getfile(KSpaceSuperResolutionWGAN), args.train_dir)
 
     if args.mode == 'train' or args.mode == 'resume':
         train_model(args.mode, args.checkpoint)
@@ -360,7 +359,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_file_interp', dest='output_file_interp', default=None, type=str, help='Output file for interpolation output')
     parser.add_argument('--print_train', dest='print_train', type=int, help='Print_Train')
     parser.add_argument('--print_test', dest='print_test', type=int, help='Print Test')
-    parser.add_argument('--num_gen_updates', dest='num_gen_updates', type=int, help='num_gen_updates')
+    parser.add_argument('--num_D_updates', dest='num_D_updates', type=int, help='num_D_updates')
     parser.add_argument('--gen_loss_adversarial', dest='gen_loss_adversarial', type=float, help='gen_loss_adversarial')
     parser.add_argument('--gen_loss_context', dest='gen_loss_context', type=float, help='gen_loss_context')
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')

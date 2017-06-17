@@ -15,7 +15,8 @@ def binary_cross_entropy(preds, targets, name=None):
         targets: A `Tensor` of the same type and shape as `preds`.
     """
     eps = 1e-12
-    with ops.op_scope([preds, targets], name, "bce_loss") as name:
+    # with ops.op_scope([preds, targets], name, "bce_loss") as name:
+    with tf.name_scope(name=name,  default_name="bce_loss", values=[preds, targets]) as name:
         preds = ops.convert_to_tensor(preds, name="preds")
         targets = ops.convert_to_tensor(targets, name="targets")
         return tf.reduce_mean(-(targets * tf.log(preds + eps) +
@@ -28,22 +29,22 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 
-def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, name="conv2d"):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d"):
 
     if in_channels is None:
-        in_channels = input_.get_shape()[-1]
+        in_channels = input_.get_shape()[-1] if data_format == 'NHWC' else input_.get_shape()[1]
 
     with tf.variable_scope(name):
         w = tf.get_variable('w', [k_h, k_w, in_channels, output_dim],
                             initializer=tf.contrib.layers.xavier_initializer())
-        conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
+        conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME', data_format=data_format)
         biases = tf.get_variable('b', [output_dim], initializer=tf.constant_initializer(0.0))
-        conv = tf.nn.bias_add(conv, biases)
+        conv = tf.nn.bias_add(conv, biases, data_format=data_format)
         reg = tf.nn.l2_loss(w) + tf.nn.l2_loss(biases)
         return conv, reg
 
 
-def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="conv2d_transpose", with_w=False):
+def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="conv2d_transpose", data_format='NCHW', with_w=False):
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
         w = tf.get_variable('w', [k_h, k_h, output_shape[-1], input_.get_shape()[-1]],
@@ -51,16 +52,16 @@ def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="con
 
         try:
             deconv = tf.nn.conv2d_transpose(input_, w, output_shape=output_shape,
-                                strides=[1, d_h, d_w, 1])
+                                strides=[1, d_h, d_w, 1], data_format=data_format)
 
         # Support for verisons of TensorFlow before 0.7.0
         except AttributeError:
             deconv = tf.nn.deconv2d(input_, w, output_shape=output_shape,
-                                strides=[1, d_h, d_w, 1])
+                                strides=[1, d_h, d_w, 1], data_format=data_format)
 
         biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.0))
         # deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
-        deconv = tf.nn.bias_add(deconv, biases)
+        deconv = tf.nn.bias_add(deconv, biases, data_format=data_format)
 
         reg = tf.nn.l2_loss(w) + tf.nn.l2_loss(biases)
 
@@ -91,7 +92,7 @@ def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False):
             return tf.matmul(input_, matrix) + bias
 
 
-def batch_norm(in_tensor, phase_train, name, decay=0.99):
+def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
@@ -105,10 +106,11 @@ def batch_norm(in_tensor, phase_train, name, decay=0.99):
         normed:      batch-normalized maps
     """
     with tf.variable_scope(name) as scope:
-        return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, decay=decay, scope=scope)
+        return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, decay=decay, scope=scope, fused=True,
+                                            data_format=data_format)
 
 
-def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, name="conv2d"):
+def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d"):
     """
     Define residual block
     :param input_:
@@ -124,13 +126,13 @@ def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_ch
     """
 
     conv_1, reg_1 = conv2d(input_, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
-                               in_channels=in_channels, name=name+"_conv_1")
-    conv_1_bn = batch_norm(conv_1, train_phase, decay=0.98, name=name+"_bn_1")
+                               in_channels=in_channels, data_format=data_format, name=name+"_conv_1")
+    conv_1_bn = batch_norm(conv_1, train_phase, decay=0.98, name=name+"_bn_1", data_format=data_format)
     relu_1 = tf.nn.relu(conv_1_bn, name=name+"_relu_1")
 
     conv_2, reg_2 = conv2d(relu_1, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
-                               in_channels=in_channels, name=name+"_conv_2")
-    conv_2_bn = batch_norm(conv_2, train_phase, decay=0.98, name=name+"_bn_2")
+                               in_channels=in_channels, data_format=data_format, name=name+"_conv_2")
+    conv_2_bn = batch_norm(conv_2, train_phase, decay=0.98, name=name+"_bn_2", data_format=data_format)
 
     addition = input_ + conv_2_bn
     relu_2 = tf.nn.relu(addition, name=name+"_relu_2")

@@ -9,6 +9,7 @@ from appcode.mri.k_space.files_info import get_file_info
 from common.files_IO.file_handler import FileHandler
 import matplotlib.pyplot as plt
 from common.viewers.imshow import imshow
+import scipy.signal
 import random
 # MAX_IM_VAL = 2.0**16 - 1
 
@@ -181,6 +182,32 @@ def get_random_mask(w, h, factor, start_line=0, keep_center=0):
         center_line = int(np.floor(h / 2))
         center_width = int(np.floor(0.5 * keep_center * h))
         mask[range(center_line-center_width, center_line + center_width, 1), :] = 1
+    return mask
+
+
+def get_random_gaussian_mask(im_shape=(256,256), peak_probability=0.8, std=64.0, keep_center=-1.0):
+    """
+    Get Random gauusian mask
+    :param im_shape: 
+    :param peak_prob: 
+    :param std: 
+    :return: 
+    """""
+    in_shape = np.array(im_shape).astype(np.float32)
+
+    threshholds = peak_probability * scipy.signal.gaussian(im_shape[0], std)
+    # np.random.seed(0)
+    row_mask = np.random.rand(im_shape[0])
+
+    mask = np.zeros(im_shape[:2], dtype=np.uint8)
+    mask[row_mask < threshholds, :] = 1
+
+    if 0.0 < keep_center < 1.0:
+        center_line = int(np.floor(in_shape[0] / 2))
+        center_width = int(np.floor(0.5 * keep_center * in_shape[0]))
+        mask[range(center_line-center_width, center_line + center_width, 1), :] = 1
+
+    # factor = float(np.count_nonzero(np.ravel(mask))) / len(np.ravel(mask))
     return mask
 
 

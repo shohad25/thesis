@@ -88,8 +88,8 @@ class KSpaceSuperResolutionGAN(BasicModel):
         Define the model
         """
         mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
-
         # Create the inputs
+        x_imag_offset = (self.input['imag'] + self.input['imag_min'])
         x_real = self.input['real'] * self.input['mask']
         x_imag = self.input['imag'] * self.input['mask']
 
@@ -103,10 +103,9 @@ class KSpaceSuperResolutionGAN(BasicModel):
         x_imag += noise_imag
 
         if self.FLAGS.dump_debug:
-
-            tf.summary.image('G_x_input_real', tf.transpose(x_real, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('G_x_input_imag', tf.transpose(x_imag, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('G_mask', tf.transpose(self.labels['mask'], (0, 2, 3, 1)), collections='G', max_outputs=1)
+            tf.summary.image('G_x_input_real', x_real, collections='G', max_outputs=2)
+            tf.summary.image('G_x_input_imag', x_imag, collections='G', max_outputs=2)
+            tf.summary.image('G_mask', self.labels['mask'], collections='G', max_outputs=1)
             in1 = x_real
             in2 = x_imag
             tf.summary.image('G_reconstruct_zeroPadding', self.get_reconstructed_image(real=in1,
@@ -118,41 +117,40 @@ class KSpaceSuperResolutionGAN(BasicModel):
         # Model convolutions
         # with tf.name_scope('real'):
         out_dim = 16
-        x_input_stack = tf.stack([x_real[:,0,:,:], x_imag[:,0,:,:]], axis=1)
+        x_input_stack = tf.stack([x_real[:,:,:,0], x_imag[:,:,:,0]], axis=3)
         # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
-
-        self.conv_1, reg_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
-        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
+        self.conv_1, reg_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1", data_format='NHWC')
+        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1", data_format='NHWC')
         self.relu_1 = tf.nn.relu(self.conv_1_bn)
         self.regularization_values.append(reg_1)
 
         out_dim = 32
-        self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
-        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
+        self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2", data_format='NHWC')
+        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2", data_format='NHWC')
         self.relu_2 = tf.nn.relu(self.conv_2_bn)
         self.regularization_values.append(reg_2)
 
         out_dim = 64
-        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
-        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
+        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3", data_format='NHWC')
+        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3", data_format='NHWC')
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
         self.regularization_values.append(reg_3)
 
 
         out_dim = 32
-        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
-        self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
+        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4", data_format='NHWC')
+        self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4", data_format='NHWC')
         self.relu_4 = tf.nn.relu(self.conv_4_bn)
         self.regularization_values.append(reg_4)
 
         out_dim = 8
-        self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
-        self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5")
+        self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5", data_format='NHWC')
+        self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5", data_format='NHWC')
         self.relu_5 = tf.nn.relu(self.conv_5_bn)
         self.regularization_values.append(reg_5)
 
         out_dim = 2
-        self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
+        self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6", data_format='NHWC')
         self.regularization_values.append(reg_6)
             #
         #
@@ -198,8 +196,8 @@ class KSpaceSuperResolutionGAN(BasicModel):
         predict = {}
         # predict['real'] = tf.reshape(self.conv_6, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
         # predict['imag'] = tf.reshape(self.conv_66, [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
-        predict['real'] = tf.reshape(self.conv_6[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
-        predict['imag'] = tf.reshape(self.conv_6[:,1,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
+        predict['real'] = tf.reshape(self.conv_6[:,:,:,0], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
+        predict['imag'] = tf.reshape(self.conv_6[:,:,:,1], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
 
         # Masking
         predict['real'] = tf.multiply(predict['real'], mask_not)
@@ -211,6 +209,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
         with tf.name_scope("final_predict"):
             predict['real'] = tf.add(predict['real'], input_masked_real, name='real')
             predict['imag'] = tf.add(predict['imag'], input_masked_imag, name='imag')
+
 
         tf.add_to_collection("predict", predict['real'])
         tf.add_to_collection("predict", predict['imag'])
@@ -229,6 +228,7 @@ class KSpaceSuperResolutionGAN(BasicModel):
         Define the discriminator
         """
         # Dump input image out
+
         input_real = tf.concat(axis=0, values=[input_d[0]['real'], input_d[1]['real']])
         input_imag = tf.concat(axis=0, values=[input_d[0]['imag'], input_d[1]['imag']])
 
@@ -236,25 +236,25 @@ class KSpaceSuperResolutionGAN(BasicModel):
         input_to_discriminator = self.get_reconstructed_image(real=input_real, imag=input_imag, name='Both')
 
         org, fake = tf.split(input_to_discriminator, num_or_size_splits=2, axis=0)
-        tf.summary.image('D_x_input_reconstructed' + 'Original', tf.transpose(org, (0,2,3,1)), collections='D', max_outputs=4)
-        tf.summary.image('D_x_input_reconstructed' + 'Fake', tf.transpose(fake, (0,2,3,1)), collections='G', max_outputs=4)
+        tf.summary.image('D_x_input_reconstructed' + 'Original', org, collections='D', max_outputs=2)
+        tf.summary.image('D_x_input_reconstructed' + 'Fake', fake, collections='G', max_outputs=2)
 
         # Model convolutions
         out_dim = 8  # 128x128
-        self.conv_1_d, reg_1_d = ops.conv2d(input_to_discriminator, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_1")
+        self.conv_1_d, reg_1_d = ops.conv2d(input_to_discriminator, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_1", data_format='NHWC')
         self.pool_1_d = tf.nn.max_pool(self.conv_1_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                        name="D_pool_1")
-        self.conv_1_bn_d = ops.batch_norm(self.pool_1_d, self.train_phase, decay=0.98, name="D_bn1")
+        self.conv_1_bn_d = ops.batch_norm(self.pool_1_d, self.train_phase, decay=0.98, name="D_bn1", data_format='NHWC')
         # self.relu_1_d = tf.nn.relu(self.conv_1_bn_d)
         self.relu_1_d = ops.lrelu(self.conv_1_bn_d)
         self.regularization_values_d.append(reg_1_d)
 
         out_dim = 16  # 64x64
         self.conv_2_d, reg_2_d = ops.conv2d(self.relu_1_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
-                                            name="D_conv_2")
+                                            name="D_conv_2", data_format='NHWC')
         self.pool_2_d = tf.nn.max_pool(self.conv_2_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                        name="D_pool_2")
-        self.conv_2_bn_d = ops.batch_norm(self.pool_2_d, self.train_phase, decay=0.98, name="D_bn2")
+        self.conv_2_bn_d = ops.batch_norm(self.pool_2_d, self.train_phase, decay=0.98, name="D_bn2", data_format='NHWC')
         # self.relu_2_d = tf.nn.relu(self.conv_2_bn_d)
         self.relu_2_d = ops.lrelu(self.conv_2_bn_d)
         self.regularization_values_d.append(reg_2_d)
@@ -262,10 +262,10 @@ class KSpaceSuperResolutionGAN(BasicModel):
         # out_dim = 32  # 32x32
         out_dim = 8  # 32x32
         self.conv_3_d, reg_3_d = ops.conv2d(self.relu_2_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
-                                            name="D_conv_3")
+                                            name="D_conv_3", data_format='NHWC')
         self.pool_3_d = tf.nn.max_pool(self.conv_3_d, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                        name="D_pool_3")
-        self.conv_3_bn_d = ops.batch_norm(self.pool_3_d, self.train_phase, decay=0.98, name="D_bn3")
+        self.conv_3_bn_d = ops.batch_norm(self.pool_3_d, self.train_phase, decay=0.98, name="D_bn3", data_format='NHWC')
         # self.relu_3_d = tf.nn.relu(self.conv_3_bn_d)
         self.relu_3_d = ops.lrelu(self.conv_3_bn_d)
         self.regularization_values_d.append(reg_3_d)
@@ -409,15 +409,15 @@ class KSpaceSuperResolutionGAN(BasicModel):
         :return:
         """
         complex_k_space_label = tf.complex(real=tf.squeeze(real), imag=tf.squeeze(imag), name=name+"_complex_k_space")
-        rec_image_complex = tf.expand_dims(tf.ifft2d(complex_k_space_label), axis=1)
-        rec_image = tf.reshape(tf.abs(rec_image_complex), shape=[-1, 1, 256, 256])
+        rec_image_complex = tf.expand_dims(tf.ifft2d(complex_k_space_label), axis=3)
+        rec_image = tf.reshape(tf.abs(rec_image_complex), shape=[-1, 256, 256, 1])
 
         # Shifting
-        top, bottom = tf.split(rec_image, num_or_size_splits=2, axis=2)
-        top_left, top_right = tf.split(top, num_or_size_splits=2, axis=3)
-        bottom_left, bottom_right = tf.split(bottom, num_or_size_splits=2, axis=3)
+        top, bottom = tf.split(rec_image, num_or_size_splits=2, axis=1)
+        top_left, top_right = tf.split(top, num_or_size_splits=2, axis=2)
+        bottom_left, bottom_right = tf.split(bottom, num_or_size_splits=2, axis=2)
 
-        top_shift = tf.concat(axis=3, values=[bottom_right, bottom_left])
-        bottom_shift = tf.concat(axis=3, values=[top_right, top_left])
-        shifted_image = tf.concat(axis=2, values=[top_shift, bottom_shift])
+        top_shift = tf.concat(axis=2, values=[bottom_right, bottom_left])
+        bottom_shift = tf.concat(axis=2, values=[top_right, top_left])
+        shifted_image = tf.concat(axis=1, values=[top_shift, bottom_shift])
         return shifted_image

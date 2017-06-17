@@ -2,8 +2,8 @@ import numpy as np
 from numpy.fft import *
 from scipy.interpolate import griddata
 from scipy.misc import imresize
-
-EPS = 0.001
+import math
+EPS = 0.0001
 
 def get_dummy_k_space_and_image(img):
     """
@@ -38,7 +38,9 @@ def get_dummy_k_space_and_image(img):
 
             # Reconstruct image
             # dummy_img[:,:,i] = np.abs(ifft2(k_space[:,:,i])).astype(np.int16)
-            dummy_img[:,:,i] = np.abs(np.real(ifft2c(k_space[:,:,i])).astype(np.float32))
+            # dummy_img[:,:,i] = np.abs(np.real(ifft2c(k_space[:,:,i])).astype(np.float32))
+            dummy_img[:, :, i] = np.abs(ifft2c(k_space[:, :, i])).astype(np.float32)
+
             dummy_img[:,:,i][np.where(np.abs(dummy_img[:,:,i]) < EPS)] = 0
             dummy_img[:,:,i][np.where(dummy_img[:,:,i] > 1)] = 1
 
@@ -63,27 +65,34 @@ def get_image_from_kspace(k_real, k_imag):
         k_space.imag = k_imag
 
         # Clipping
-        k_space.real[np.where(np.abs(k_space.real) < EPS)] = 0
-        k_space.imag[np.where(np.abs(k_space.imag) < EPS)] = 0
+        # k_space.real[np.where(np.abs(k_space.real) < EPS)] = 0
+        # k_space.imag[np.where(np.abs(k_space.imag) < EPS)] = 0
 
         # Reconstruct image
-        ret_img = np.real(ifft2c(k_space)).astype(np.float32)
+        # ret_img = np.real(ifft2c(k_space)).astype(np.float32)
+        ret_img = np.abs(ifft2c(k_space)).astype(np.float32)
     else:
         for i in range(0, k_real.shape[0]):
             # Create k-space from image, assuming this is the fully-sampled k-space.
             k_space[i,:,:] = (np.zeros_like(k_real[i,:,:]) + 0j).astype('complex64')
+
+            # HACK
+            # k_real[i,:,128:256] = np.rot90(np.rot90(k_real[i,:,0:128]))
+            # k_imag[i,:,128:256] = np.rot90(np.rot90(k_imag[i,:,0:128]))
+
             k_space[i,:,:].real = k_real[i,:,:]
             k_space[i,:,:].imag = k_imag[i,:,:]
 
             # Clipping
-            k_space[i,:,:].real[np.where(np.abs(k_space[i,:,:].real) < EPS)] = 0
-            k_space[i,:,:].imag[np.where(np.abs(k_space[i,:,:].imag) < EPS)] = 0
+            # k_space[i,:,:].real[np.where(np.abs(k_space[i,:,:].real) < EPS)] = 0
+            # k_space[i,:,:].imag[np.where(np.abs(k_space[i,:,:].imag) < EPS)] = 0
 
             # Reconstruct image
             # dummy_img[:,:,i] = np.abs(ifft2(k_space[:,:,i])).astype(np.int16)
-            ret_img[i,:,:] = np.abs(np.real(ifft2c(k_space[i,:,:])).astype(np.float32))
-            ret_img[i,:,:][np.where(np.abs(ret_img[i,:,:]) < EPS)] = 0
-            ret_img[i,:,:][np.where(ret_img[i,:,:] > 1)] = 1
+            # ret_img[i,:,:] = np.abs(np.real(ifft2c(k_space[i,:,:])).astype(np.float32))
+            ret_img[i, :, :] = np.abs(ifft2c(k_space[i, :, :])).astype(np.float32)
+            # ret_img[i,:,:][np.where(np.abs(ret_img[i,:,:]) < EPS)] = 0
+            # ret_img[i,:,:][np.where(ret_img[i,:,:] > 1)] = 1
 
     return ret_img
 
@@ -111,17 +120,31 @@ def ifft2c(x):
     """
     norm_factor = np.sqrt(len(x.ravel()))
     ret = norm_factor * ifftshift(ifft2(fftshift(x)))
+    # ret = norm_factor * ifft2(x)
     return ret
 
-def zero_padding(img_input, mask):
+
+def zero_padding(k_space_real, k_space_imag, mask):
     """
     return the image with the same dims as img_input.
     put zero in mask
-    :param img_input: input image
+    :param k_space_real
+    :param k_space_imag
     :param mask: binary mask
     """
+    out_real = np.zeros_like(mask)
+    out_imag = np.zeros_like(mask)
 
-    return img_input * mask
+    filled = 0
+    for line in range(mask.shape[1]):
+        if all(mask[line, : ]>0):
+            out_real[line, :] = k_space_real[filled, :]
+            out_imag[line, :] = k_space_imag[filled, :]
+            filled += 1
+
+    assert filled == k_space_real.shape[0]
+    return out_real, out_imag
+
 
 def interpolated_missing_samples(img_input, dims_out, method):
     """
@@ -139,4 +162,3 @@ def interpolated_missing_samples(img_input, dims_out, method):
     else:
         ret = imresize(arr=img_input, size=dims_out, interp=method, mode=None)
     return ret
-        

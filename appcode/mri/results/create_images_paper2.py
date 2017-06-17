@@ -1,12 +1,12 @@
-# !/home/ohadsh/Tools/anaconda/bin/python
+#!/usr/bin/python
 import numpy as np
 import json
 import os
 import matplotlib.pyplot as plt
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.utils import get_image_from_kspace, interpolated_missing_samples, zero_padding
+from appcode.mri.k_space.utils import get_image_from_kspace
 from common.files_IO.file_handler import FileHandler
-from appcode.mri.k_space.data_creator import get_random_mask, get_subsample
+from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask
 from common.viewers.imshow import imshow
 file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt', 'mask', 'k_space_real', 'k_space_imag']
 mini_batch = 50
@@ -51,7 +51,8 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     fig, ax = plt.subplots(nrows=2, ncols=3)
     fig.set_size_inches(18.5, 10.5, forward=True)
 
-    
+    fig, ax = plt.subplots(nrows=2, ncols=3)
+
     while data_set_tt.epoch == 0:
         # Running over all data until epoch > 0
         data = data_set_tt.next_batch(mini_batch, norm=False)
@@ -69,7 +70,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
 
         for i in range(0, data["k_space_real_gt"].shape[0]):
             print i
-            fig, ax = plt.subplots(nrows=2, ncols=3)
+            # fig, ax = plt.subplots(nrows=2, ncols=3)
             fig.set_size_inches(18.5, 10.5, forward=True)
 
             # Original image
@@ -79,19 +80,22 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
             # Interpolation
-            mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+            # mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+            mask = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0,
+                                            keep_center=0.05)
+
             reduction = np.sum(mask) / float(mask.ravel().shape[0])
             print (reduction)
-            k_space_real_gt_int = data["k_space_real_gt"][i,:,:] * mask
-            k_space_imag_gt_int = data["k_space_imag_gt"][i,:,:] * mask
+            k_space_real_gt_zero = data["k_space_real_gt"][i,:,:] * mask
+            k_space_imag_gt_zero = data["k_space_imag_gt"][i,:,:] * mask
 
-            for line in range(0,255):
-                missing_line = np.all(mask[line, :] == 0)
-                if missing_line:
-                    k_space_real_gt_int[line, :] = 0.5*(k_space_real_gt_int[line-1, :] + k_space_real_gt_int[line+1, :])
-                    k_space_imag_gt_int[line, :] = 0.5*(k_space_imag_gt_int[line-1, :] + k_space_imag_gt_int[line+1, :])
-            k_space_amp_interp = np.log(np.sqrt(k_space_real_gt_int**2 + k_space_imag_gt_int**2))
-            rec_image_interp = get_image_from_kspace(k_space_real_gt_int,k_space_imag_gt_int)
+            # for line in range(0,255):
+            #     missing_line = np.all(mask[line, :] == 0)
+            #     if missing_line:
+            #         k_space_real_gt_int[line, :] = 0.5*(k_space_real_gt_int[line-1, :] + k_space_real_gt_int[line+1, :])
+            #         k_space_imag_gt_int[line, :] = 0.5*(k_space_imag_gt_int[line-1, :] + k_space_imag_gt_int[line+1, :])
+            k_space_amp_interp = np.log(np.sqrt(k_space_real_gt_zero**2 + k_space_imag_gt_zero**2))
+            rec_image_zero_padding = get_image_from_kspace(k_space_real_gt_zero,k_space_imag_gt_zero)
 
 
             # Network predicted model 1
@@ -106,14 +110,18 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
 
             ax[1][0].set_title('Mask')
             ax[1][0].imshow(mask, interpolation="none", cmap="gray")
-            ax[1][0].axis('off')            
+            ax[1][0].axis('off')
+
             ########### Interpolated ############
-            ax[0][1].set_title('Rec Image Interp:%s ' % method)
-            ax[0][1].imshow(rec_image_interp, interpolation="none", cmap="gray")
+            ax[0][1].set_title('Rec Image Zero padding')
+            # imi = np.fromfile('/media/ohadsh/Data/ohadsh/work/matlab/sparseMRI_v0.2/res1_cs.bin', dtype=np.float32)
+            # imi = imi.reshape((256,256))
+            ax[0][1].imshow(rec_image_zero_padding, interpolation="none", cmap="gray")
+            # ax[0][1].imshow(imi, interpolation="none", cmap="gray")
             ax[0][1].axis('off')
             #
             ax[1][1].set_title('Diff-imag')
-            im=ax[1][1].imshow(np.log(1+np.abs(rec_image_interp - org_image)), interpolation="none", cmap="gray")
+            im=ax[1][1].imshow(np.log(1+np.abs(rec_image_zero_padding - org_image)), interpolation="none", cmap="gray")
             ax[1][1].axis('off')
             fig.colorbar(im, orientation='vertical', ax=ax[1][1])
 
@@ -130,7 +138,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             plt.draw()
             fig.tight_layout()
             plt.waitforbuttonpress(timeout=-1)
-            plt.close()
+            # plt.close()
 
 if __name__ == '__main__':
     data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
@@ -140,11 +148,18 @@ if __name__ == '__main__':
     DIMS_OUT = np.array([256, 256, 1])
     sampling_factor = 2
 
-    predict = {'2017_03_09_ver7_005':
-                   '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7_factor_005/predict/train/',
+    # predict = {'2017_03_09_ver7_005':
+    #                '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7_factor_005/predict/train/',
+    #            'interp':
+    #                '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
+
+    predict = {'ONLY_L2':
+                   '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/only_L2/predict/train/',
                'interp':
                    '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
                }
+
     
     w = 256
     h = 256
