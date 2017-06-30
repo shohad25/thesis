@@ -5,10 +5,10 @@ import numpy as np
 import random
 import argparse
 
-from appcode.mri.k_space.files_info import files_info
+from appcode.mri.k_space.files_info import get_info
 
 
-def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123):
+def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123, data_base=None):
     """
     Given base train / test dir, this script shuffle examples and create 1 batch of data
     :param base_dir: basic dir
@@ -17,7 +17,7 @@ def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123):
     :param seed: for pseudorandom initialization
     :return: None
     """
-
+    files_info = get_info(data_base)
     random.seed(seed)
 
     tt = eval(tt)
@@ -59,9 +59,11 @@ if __name__ == "__main__":
 
     parser.add_argument('--tt', required=False, default='["train", "test"]', type=str, help='Train / Test')
 
+    parser.add_argument('--data_base', required=True, default=None, type=str, help='Data base name for file info')
+
     parser.add_argument('--seed', required=False, default=123, type=int, help='Seed for pseudorandom initialization')
 
     args = parser.parse_args()
 
     # Run shuffle:
-    shuffle_data(args.base_dir, args.output_dir, args.tt, args.seed)
+    shuffle_data(args.base_dir, args.output_dir, args.tt, args.seed, args.data_base)

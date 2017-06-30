@@ -4,8 +4,9 @@ MRI data base - all needed for handle my MRI database, NIfTI and DICOM as well
 import json
 import os
 from collections import OrderedDict
-
+import glob
 import nibabel as nib
+import numpy as np
 
 from common.viewers.orthoslicer import OrthoSlicer3D
 
@@ -29,8 +30,16 @@ class MriDataBase:
         self.nifty_or_dicom = nifti_or_dicom
         self.data_path = data_to_path[data_name]["data"]
         self.labels_path = data_to_path[data_name]["labels"]
-        file_suffix = "hdr" if nifti_or_dicom == 'nifti' else 'dicom'  # TODO
-        self.items = sorted([item for item in os.listdir(data_to_path[data_name]["data"]) if file_suffix in item])
+
+        # New method for ADNI
+        if "suffix" in data_to_path[data_name]:
+            self.items = sorted(glob.glob(os.path.join(data_to_path[data_name]["data"], data_to_path[data_name]["suffix"])))
+            self.items = [item.strip(self.data_path) for item in self.items]
+        else:
+            # OLD SchizReg
+            file_suffix = "hdr" if nifti_or_dicom == 'nifti' else 'dicom'  # TODO
+            self.items = sorted([item for item in os.listdir(data_to_path[data_name]["data"]) if file_suffix in item])
+
         self.data = dict(img=[],meta_data=[], labels=[])
         self.info = self.set_info(data_to_path[data_name]["info"])
 
@@ -40,17 +49,17 @@ class MriDataBase:
         :param item: item name or all
         :return: dictionary
         """
-
         items = self.items if item=='all' else [item]
         data = dict(img=[], meta_data=[], labels=[])
 
         for it in items:
+
             if self.nifty_or_dicom == 'nifti':
                 niftii_obj = nib.load(os.path.join(self.data_path, it))
                 data["meta_data"].append(OrderedDict(niftii_obj.header))
                 data["labels"] = 'labels'
-                data['img'].append(niftii_obj.get_data())
-
+                dat = niftii_obj.get_data()
+                data['img'].append(dat)
         return data
 
     def set_info(self, info_path):
@@ -60,11 +69,20 @@ class MriDataBase:
         :return: dictionary
         """
         ret_dic = {}
-        with open(os.path.join(info_path, 'case_to_hash.json'), 'r') as f:
-            ret_dic["case_to_hash"] = json.load(f)
+        try:
+            # NEW METHOD
+            with open(os.path.join(info_path, 'data_info.json'), 'r') as f:
+                info = json.load(f)
+            ret_dic["case_to_hash"] = {case: meta['hash'] for (case,meta) in info.iteritems()}
+            ret_dic["train_test_list"] = {case: meta['tt'] for (case, meta) in info.iteritems()}
+            ret_dic["file"] = {case: meta['file'] for (case, meta) in info.iteritems()}
+        except:
+            # OLD METHOD
+            with open(os.path.join(info_path, 'case_to_hash.json'), 'r') as f:
+                ret_dic["case_to_hash"] = json.load(f)
 
-        with open(os.path.join(info_path, 'train_test_list.json'), 'r') as f:
-            ret_dic["train_test_list"] = json.load(f)
+            with open(os.path.join(info_path, 'train_test_list.json'), 'r') as f:
+                ret_dic["train_test_list"] = json.load(f)
 
         return ret_dic
 
@@ -75,3 +93,4 @@ class MriDataBase:
         :return:
         """
         OrthoSlicer3D(data)
+

@@ -6,7 +6,7 @@ from appcode.mri.data.mri_data_base import MriDataBase
 from appcode.mri.k_space.data_creator import DataCreator
 
 
-def create_base_data_for_train(data_base_name, output_dir, axial_limits, debug):
+def create_base_data_for_train(data_base_name, output_dir, axial_limits, debug, trans=None):
     """
     Create data for training form dataBase name.
     The scripts create directory for each case in train/test and write each example
@@ -17,11 +17,13 @@ def create_base_data_for_train(data_base_name, output_dir, axial_limits, debug):
     :param debug: debug mode
     :return:
     """
+
     axial_limits = np.array(eval(axial_limits))
+    trans = eval(trans) if len(trans) > 0 else None
 
     data_source = MriDataBase(data_base_name)
     data_creator = DataCreator(data_source, output_dir, axial_limits=axial_limits)
-    data_creator.create_examples(debug=debug)
+    data_creator.create_examples(debug=debug, trans=trans)
 
 
 if __name__ == "__main__":
@@ -39,10 +41,12 @@ if __name__ == "__main__":
 
     parser.add_argument('--debug', required=False, default=False, type=bool, help='debug mode')
 
+    parser.add_argument('--trans', required=False, default='', type=str, help='Transpose')
+
     args = parser.parse_args()
 
     # Run script:
-    create_base_data_for_train(args.data_base_name, args.output_dir, args.axial_limits, debug=args.debug)
+    create_base_data_for_train(args.data_base_name, args.output_dir, args.axial_limits, debug=args.debug, trans=args.trans)
 
     # # Debug
     # create_base_data_for_train('SchizReg', '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/base/'

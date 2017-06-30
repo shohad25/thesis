@@ -4,5 +4,18 @@
 
   "SchizDataNonReg": {"data":"/media/ohadsh/sheard/Ohad/thesis/data/SchizDataNonReg/SchizReg/Images3D/",
               "labels": "/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizDataNonReg/Labels3D/",
-              "info": ""}
+              "info": ""},
+
+  "ADNI_Normal": {"data":"/media/ohadsh/sheard/Ohad/thesis/data/ADNI_internet/ADNI/Normal/",
+                  "labels": "/media/ohadsh/sheard/Ohad/thesis/data/ADNI_internet/ADNI/Normal/",
+                  "info": "/home/ohadsh/work/python/thesis/appcode/mri/data/ADNI/Normal/",
+                  "suffix": "*/*_Original.nii.gz"},
+  "ADNI_AD":     {"data":"/media/ohadsh/sheard/Ohad/thesis/data/ADNI_internet/ADNI/AD/",
+                  "labels": "/media/ohadsh/sheard/Ohad/thesis/data/ADNI_internet/ADNI/AD/",
+                  "info": "/home/ohadsh/work/python/thesis/appcode/mri/data/ADNI/AD/",
+                  "suffix": "*/*_Original.nii.gz"},
+  "ADNI_MCI":    {"data":"/media/ohadsh/sheard/Ohad/thesis/data/ADNI_internet/ADNI/MCI/",
+                  "labels": "/media/ohadsh/sheard/Ohad/thesis/data/ADNI_internet/ADNI/MCI/",
+                  "info": "/home/ohadsh/work/python/thesis/appcode/mri/data/ADNI/MCI/",
+                  "suffix": "*/*_Original.nii.gz"}
 }

@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from appcode.mri.k_space.files_info import files_info
+from appcode.mri.k_space.files_info import get_info
 from common.files_IO.file_handler import FileHandler
 
 
@@ -9,7 +9,7 @@ class KspaceDataSet:
     Kspace data base class
     """
 
-    def __init__(self, base_dir, file_names, stack_size=500, shuffle=True):
+    def __init__(self, base_dir, file_names, stack_size=500, shuffle=True, data_base='SchizReg'):
         """
         Constructor
         :param base_dir: basic dir after shuffle
@@ -20,9 +20,11 @@ class KspaceDataSet:
         """
         self.path = base_dir
         self.file_names = file_names
-        self.train = DataSet(os.path.join(base_dir, "train"), file_names, stack_size, shuffle=shuffle)
-        self.test = DataSet(os.path.join(base_dir, "test"), file_names, stack_size, shuffle=shuffle)
+        self.files_info = get_info(data_base)
+        self.train = DataSet(os.path.join(base_dir, "train"), file_names, stack_size, shuffle=shuffle, files_info=self.files_info)
+        self.test = DataSet(os.path.join(base_dir, "test"), file_names, stack_size, shuffle=shuffle, files_info=self.files_info)
         self.stack_size = stack_size
+
 
 
 class DataSet:
@@ -30,7 +32,7 @@ class DataSet:
     Train / Test Data Set
     """
 
-    def __init__(self, base_dir, file_names, stack_size, shuffle=True):
+    def __init__(self, base_dir, file_names, stack_size, shuffle=True, files_info=None):
         """
         Constructor
         :param base_dir: basic dir after shuffle
@@ -47,6 +49,7 @@ class DataSet:
         self.N_MAX = stack_size  # Number of examples in current
         self.files_obj = {}
         self.shuffle = shuffle
+        self.files_info = files_info
         # Init all files objects, for reading
         self.init_files_obj()
 
@@ -56,7 +59,7 @@ class DataSet:
         :return:
         """
         files_obj = {}
-        for (file_name, info) in files_info.iteritems():
+        for (file_name, info) in self.files_info.iteritems():
             if file_name in self.file_names:
                 path = os.path.join(self.path, "000000.%s.bin" % file_name)
                 files_obj[file_name] = FileHandler(path, info, "read", name=None)
