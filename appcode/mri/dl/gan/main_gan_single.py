@@ -34,11 +34,13 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
+
 flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
 flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
 # flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_size', 5, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
+flags.DEFINE_integer('max_predict', 9999999999, 'Number of steps to run trainer.')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
 # flags.DEFINE_float('gen_loss_adversarial', 1.0, 'Generative loss, adversarial weight.')
@@ -327,6 +329,9 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
 
             predict_counter += FLAGS.mini_batch_predict
             print("Done - " + str(predict_counter))
+            if predict_counter >= FLAGS.max_predict:
+                break
+
 
     if output_file is not None:
         f_out_real.close()
@@ -338,11 +343,10 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
 
 def main(args):
 
-    # Copy scripts to training dir
-    shutil.copy(os.path.abspath(__file__), args.train_dir)
-    shutil.copy(inspect.getfile(KSpaceSuperResolutionGAN), args.train_dir)
-
     if args.mode == 'train' or args.mode == 'resume':
+        # Copy scripts to training dir
+        shutil.copy(os.path.abspath(__file__), args.train_dir)
+        shutil.copy(inspect.getfile(KSpaceSuperResolutionGAN), args.train_dir)
         train_model(args.mode, args.checkpoint)
     elif args.mode == 'evaluate':
         evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint, output_file=args.output_file, output_file_interp=args.output_file_interp)
@@ -365,6 +369,7 @@ if __name__ == '__main__':
     parser.add_argument('--gen_loss_context', dest='gen_loss_context', type=float, help='gen_loss_context')
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')
     parser.add_argument('--dump_debug', dest='dump_debug', type=bool, help='dump all images')
+    parser.add_argument('--max_predict', dest='max_predict', type=int, default=999999999999,  help='maximum predict examples')
 
     args = parser.parse_args()
 

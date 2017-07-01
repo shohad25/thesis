@@ -1,0 +1,20 @@
+T1: 
+
+1.
+cd ~/work/python/thesis/appcode/mri/k_space ; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal/ ; python create_base_data_for_train.py --data_base_name=IXI_T1 --output_dir=${BASE} ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T1
+
+2.
+cd ~/work/python/thesis/appcode/mri/k_space_axial ; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T1/axial/ ; python create_base_data_for_train.py --data_base_name=IXI_T1 --output_dir=${BASE} --trans "(0,2,1)" ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T1
+
+3.
+cd ~/work/python/thesis/appcode/mri/k_space_axial ; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T1/coronal/  ; python create_base_data_for_train.py --data_base_name=IXI_T1 --output_dir=${BASE} --trans "(1,2,0)" ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T1
+
+T2:
+1.
+cd ~/work/python/thesis/appcode/mri/k_space_axial_T2 ; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T2/axial/ ; python create_base_data_for_train.py --data_base_name=IXI_T2 --output_dir=${BASE} ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T2
+
+2.
+cd ~/work/python/thesis/appcode/mri/k_space_coronal_T2 ; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T2/coronal/ ; python create_base_data_for_train.py --data_base_name=IXI_T2 --output_dir=${BASE} --trans "(0,2,1)" ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T2
+
+3. 
+cd ~/work/python/thesis/appcode/mri/k_space_sagittal_T2 ; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T2/sagittal/ ; python create_base_data_for_train.py --data_base_name=IXI_T2 --output_dir=${BASE} --trans "(2,1,0)" ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T2

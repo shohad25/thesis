@@ -30,11 +30,11 @@ class MriDataBase:
         self.nifty_or_dicom = nifti_or_dicom
         self.data_path = data_to_path[data_name]["data"]
         self.labels_path = data_to_path[data_name]["labels"]
-
         # New method for ADNI
         if "suffix" in data_to_path[data_name]:
             self.items = sorted(glob.glob(os.path.join(data_to_path[data_name]["data"], data_to_path[data_name]["suffix"])))
-            self.items = [item.strip(self.data_path) for item in self.items]
+            self.items = ['/'.join(item.split('/')[-2:]) for item in self.items]
+            # self.items = [item.strip(self.data_path) for item in self.items]
         else:
             # OLD SchizReg
             file_suffix = "hdr" if nifti_or_dicom == 'nifti' else 'dicom'  # TODO

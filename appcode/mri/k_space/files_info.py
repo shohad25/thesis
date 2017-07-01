@@ -35,6 +35,16 @@ all_infos  = {
     "ADNI_3": {"k_space_real_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
                "k_space_imag_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
                "image_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
+               "meta_data": {"width": sizeof_meta_data, "height": 1, "channels": 1, "dtype": np.float32}},
+
+    "IXI_T1": {"k_space_real_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
+               "k_space_imag_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
+               "image_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
+               "meta_data": {"width": sizeof_meta_data, "height": 1, "channels": 1, "dtype": np.float32}},
+
+    "IXI_T2": {"k_space_real_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
+               "k_space_imag_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
+               "image_gt": {"width": 256, "height": 256, "channels": 1, "dtype": np.float32},
                "meta_data": {"width": sizeof_meta_data, "height": 1, "channels": 1, "dtype": np.float32}}
 }
 
