@@ -1,16 +1,15 @@
 #!/usr/bin/python
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_gaussian_mask
+from appcode.mri.k_space.data_creator import get_random_gaussian_mask, get_rv_mask
 from appcode.mri.k_space.utils import get_image_from_kspace
 import matplotlib.pyplot as plt
 import numpy as np
 
-base_dir = '/sheard/Ohad/thesis/data/ADNI_internet/data_for_train/shuffle/shuffle/'
-base_dir = '/sheard/Ohad/thesis/data/ADNI_internet/data_for_train/AD_3//shuffle/'
+base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
 file_names = ['k_space_real_gt', 'k_space_imag_gt']
 mini_batch = 50
 tt = 'train'
-data_set = KspaceDataSet(base_dir, file_names, stack_size=50, shuffle=False, data_base='ADNI_2')
+data_set = KspaceDataSet(base_dir, file_names, stack_size=50, shuffle=False, data_base='IXI_T1')
 data_set_tt = getattr(data_set, tt)
 
 fig, ax = plt.subplots(nrows=1, ncols=3)
@@ -22,10 +21,17 @@ for i in range(0,100):
     data = data_set_tt.next_batch(mini_batch, norm=False)
     k_space_real_gt = data["k_space_real_gt"][i,:,:]
     k_space_imag_gt = data["k_space_imag_gt"][i,:,:]
+
+    # k_space_real_gt = data["k_space_real_gt"][i,45:205,50:210]
+    # k_space_imag_gt = data["k_space_imag_gt"][i,45:205,50:210]
+
     org_image = get_image_from_kspace(k_space_real_gt, k_space_imag_gt)
 
     # Generating random mask
-    mask = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.05)
+    # mask = get_random_gaussian_mask(im_shape=(160, 160), peak_probability=0.7, std=45.0, keep_center=0.05)
+    # mask = get_random_gaussian_mask(im_shape=(256, 150), peak_probability=0.7, std=45.0, keep_center=0.05)
+    # mask = get_random_gaussian_mask(im_shape=(256, 150), peak_probability=0.7, std=45.0, keep_center=0.05)
+    mask = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor='6')
 
     reduction = np.sum(mask) / float(mask.ravel().shape[0])
     zero_padding_image = get_image_from_kspace(k_space_real_gt*mask, k_space_imag_gt*mask)

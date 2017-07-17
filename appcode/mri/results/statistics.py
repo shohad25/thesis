@@ -8,12 +8,14 @@ from appcode.mri.k_space.utils import get_image_from_kspace, interpolated_missin
 from common.files_IO.file_handler import FileHandler
 from appcode.mri.k_space.data_creator import get_random_mask, get_subsample
 from common.viewers.imshow import imshow
-file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt', 'mask', 'k_space_real', 'k_space_imag']
+file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt']
 mini_batch = 50
 from scipy import ndimage
 from collections import defaultdict
+from scipy import stats
 
-base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+# base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
 with open(os.path.join(base_dir, "factors.json"), 'r') as f:
     data_factors = json.load(f)
 
@@ -52,7 +54,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     error_zero_all = []
     error_interp_all = []
     error_proposed_all = []
-    num_of_batches = 10
+    num_of_batches = 1
     batches = 0
     # while data_set_tt.epoch == 0:
     while batches < num_of_batches:
@@ -119,12 +121,18 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
         print("Done on %d examples " % (mini_batch*batches))
 
     mse_zero = np.array(error_zero_all).mean()
+    print stats.ttest_1samp(error_zero_all, mse_zero)
+
     mse_interp = np.array(error_interp_all).mean()
+    print stats.ttest_1samp(error_interp_all, mse_interp)
+
     mse_proposed = np.array(error_proposed_all).mean()
+    print stats.ttest_1samp(error_proposed_all, mse_proposed)
 
     psnr_std_zero = psnr(np.array(error_zero_all)).std()
     psnr_std_interp = psnr(np.array(error_interp_all)).std()
     psnr_std_proposed = psnr(np.array(error_proposed_all)).std()
+    print stats.ttest_1samp(psnr(np.array(error_proposed_all)), psnr_std_proposed)
 
     print("MSE-ZERO = %f" % mse_zero)
     print("MSE-INTERP = %f" % mse_interp)
@@ -145,8 +153,8 @@ def psnr(mse):
     return psnr
 
 if __name__ == '__main__':
-    data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-
+    # data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+    data_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
     keep_center = 0.05
     DIMS_IN = np.array([256, 256, 1])
     DIMS_OUT = np.array([256, 256, 1])

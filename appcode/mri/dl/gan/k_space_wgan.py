@@ -49,6 +49,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.regularization_values_d = []
         self.regularization_sum_d = None
 
+        self.clip_weights = None
+
         tf.get_collection('D')
         tf.get_collection('G')
 
@@ -72,6 +74,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
             if len(self.regularization_values_d) > 0:
                 self.regularization_sum_d = sum(self.regularization_values_d)
+
+            self.clip_weights = self.__clip_weights__()
 
         with tf.name_scope('loss'):
             # self.loss_g = self.__loss_g__(predict=self.predict_g, self.labels, reg=self.regularization_sum)
@@ -97,21 +101,21 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         in_shape = x_real.get_shape().as_list()
         in_shape = [self.FLAGS.mini_batch_size, in_shape[1], in_shape[2], in_shape[3]]
 
-        noise_real = mask_not * tf.random_uniform(shape=in_shape, minval=0, maxval=1.0, dtype=tf.float32, seed=None, name='z_real')
-        noise_imag = mask_not * tf.random_uniform(shape=in_shape, minval=0, maxval=1.0, dtype=tf.float32, seed=None, name='z_imag')
+        print "Noise level: (-0.1,0.1)"
+        noise_real = mask_not * tf.random_uniform(shape=in_shape, minval=-0.1, maxval=0.1, dtype=tf.float32, seed=None, name='z_real')
+        noise_imag = mask_not * tf.random_uniform(shape=in_shape, minval=-0.1, maxval=0.1, dtype=tf.float32, seed=None, name='z_imag')
 
         x_real += noise_real
         x_imag += noise_imag
 
         if self.FLAGS.dump_debug:
-
-            tf.summary.image('G_x_input_real', tf.transpose(x_real, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('G_x_input_imag', tf.transpose(x_imag, (0, 2, 3, 1)), collections='G', max_outputs=2)
             tf.summary.image('G_mask', tf.transpose(self.labels['mask'], (0, 2, 3, 1)), collections='G', max_outputs=1)
-            in1 = x_real
-            in2 = x_imag
-            tf.summary.image('G_reconstruct_zeroPadding', self.get_reconstructed_image(real=in1,
-                                imag=in2, name='rec_zeroPadding'), collections='G', max_outputs=2)
+            # in1 = x_real
+            # in2 = x_imag
+            # import pdb
+            # pdb.set_trace()
+            # im_rec_noise = self.get_reconstructed_image(real=in1, imag=in2, name='rec_noisePadding')
+            # tf.summary.image('G_reconstruct_noisePadding', im_rec_noise, collections='G', max_outputs=4)
 
         self.x_input_upscale['real'] = x_real
         self.x_input_upscale['imag'] = x_imag
@@ -218,10 +222,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Dump prediction out
         if self.FLAGS.dump_debug:
-            tf.summary.image('G_predict_real', predict['real'], collections='G')
-            tf.summary.image('G_predict_imag', predict['imag'], collections='G')
-
-        # return tf.stack([predict['real'], predict['imag']], axis=3)
+            tf.summary.image('G_predict_real', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
+            tf.summary.image('G_predict_imag', tf.transpose(predict['imag'], (0, 2, 3, 1)), collections='G')
 
         return predict
 
@@ -238,8 +240,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         org, fake = tf.split(input_to_discriminator, num_or_size_splits=2, axis=0)
         
-        org = tf.reshape(tf.abs(tf.complex(real=tf.squeeze(org[:,0,:,:]), imag=tf.squeeze(org[:,1,:,:]))), shape=[-1, 1, 256, 256])
-        fake = tf.reshape(tf.abs(tf.complex(real=tf.squeeze(fake[:,0,:,:]), imag=tf.squeeze(fake[:,1,:,:]))), shape=[-1, 1, 256, 256])
+        org = tf.reshape(tf.abs(tf.complex(real=tf.squeeze(org[:,0,:,:]), imag=tf.squeeze(org[:,1,:,:]))), shape=[-1, 1, self.dims_out[1], self.dims_out[2]])
+        fake = tf.reshape(tf.abs(tf.complex(real=tf.squeeze(fake[:,0,:,:]), imag=tf.squeeze(fake[:,1,:,:]))), shape=[-1, 1, self.dims_out[1], self.dims_out[2]])
 
         tf.summary.image('D_x_input_reconstructed' + 'Original', tf.transpose(org, (0,2,3,1)), collections='D', max_outputs=4)
         tf.summary.image('D_x_input_reconstructed' + 'Fake', tf.transpose(fake, (0,2,3,1)), collections='G', max_outputs=4)
@@ -411,8 +413,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         complex_k_space_label = tf.complex(real=tf.squeeze(real), imag=tf.squeeze(imag), name=name+"_complex_k_space")
         rec_image_complex = tf.expand_dims(tf.ifft2d(complex_k_space_label), axis=1)
         
-        rec_image_real = tf.reshape(tf.real(rec_image_complex), shape=[-1, 1, 256, 256])
-        rec_image_imag = tf.reshape(tf.imag(rec_image_complex), shape=[-1, 1, 256, 256])
+        rec_image_real = tf.reshape(tf.real(rec_image_complex), shape=[-1, 1, self.dims_out[1], self.dims_out[2]])
+        rec_image_imag = tf.reshape(tf.imag(rec_image_complex), shape=[-1, 1, self.dims_out[1], self.dims_out[2]])
 
         # Shifting
         top, bottom = tf.split(rec_image_real, num_or_size_splits=2, axis=2)

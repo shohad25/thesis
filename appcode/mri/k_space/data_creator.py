@@ -4,8 +4,8 @@ dataCreator -
 import os
 import sys
 import numpy as np
-from appcode.mri.k_space.utils import get_dummy_k_space_and_image
-from appcode.mri.k_space.files_info import get_file_info
+from appcode.mri.k_space.utils import get_dummy_k_space_and_image, pad_image_with_zeros_square, pad_image_with_zeros_fixed
+from appcode.mri.k_space.files_info import get_info
 from common.files_IO.file_handler import FileHandler
 import matplotlib.pyplot as plt
 from common.viewers.imshow import imshow
@@ -18,7 +18,7 @@ class DataCreator:
     """
     DataCreator - Class of data creator object. Gets MriDataBase object and create example for training
     """
-    def __init__(self, mri_data_base, output_path, axial_limits=np.array([10, 90])):
+    def __init__(self, mri_data_base, output_path, axial_limits=np.array([10, 90]), data_base='SchizReg', rot=0):
         """
         Constructor
         :type mri_data_base: MriDataBase
@@ -31,8 +31,10 @@ class DataCreator:
         self.mri_data_base = mri_data_base
         self.base_out_path = os.path.join(output_path, 'base')
         self.axial_limits = axial_limits
+        self.file_info = get_info(data_base)
+        self.rot = rot
 
-    def create_examples(self, item='all', debug=False):
+    def create_examples(self, item='all', debug=False, trans=None):
         """
         Data creation
         :param item: case name or all cases
@@ -44,22 +46,41 @@ class DataCreator:
         # For all cases in items
         for case in items:
             case_name = case.split('.')[0]
+            case_name = case_name.split('/')[0]
             print "Working on case: " + case_name
 
             # Set output path and create dir
+            if case_name not in self.mri_data_base.info["train_test_list"]:
+                print "case:  - not in tt list, add 1 as prefix -" + case_name
+                continue
+
             tt = self.mri_data_base.info["train_test_list"][case_name]
+
             out_path = os.path.join(self.base_out_path, tt, case_name)
             os.makedirs(out_path)
             counter = 0
 
             # Read source data and create k_space + dummy image
             source_data = data_base.get_source_data(case)
-            image_3d = source_data['img'][0]
+            image_3d = source_data['img'][0].squeeze()
+            if trans is not None:
+                image_3d = image_3d.transpose(trans)
+
+            ## HACK - padding image:
+            pad = 128
+            print "PADDING IMAGE TO FIX SIZE! 256-%d " % pad
+
+            if image_3d.shape[1] > pad:
+                continue
+            image_3d = pad_image_with_zeros_fixed(dat=image_3d, to_size=[256, pad])
+
+            # Rotate if needed
+            image_3d = self.rotate(image_3d)
 
             # Normalize image
             norm_factor = 1.0 / image_3d.max() 
             image_3d = (image_3d * norm_factor).astype('float32')
-            k_space_3d, dummy_image_3d = get_dummy_k_space_and_image(image_3d)
+            k_space_3d, _ = get_dummy_k_space_and_image(image_3d)
             meta_data = source_data['meta_data'][0]
 
             # Set image sizes
@@ -69,45 +90,25 @@ class DataCreator:
             # For each Z in axial limits, create masks and dump examples
             for z in range(self.axial_limits[0], self.axial_limits[1]+1):
                 # Set ground truth
+                image_2d_gt = image_3d[:, :, z]
                 k_space_2d_gt = k_space_3d[:, :, z]
                 k_space_real_gt = k_space_2d_gt.real
                 k_space_imag_gt = k_space_2d_gt.imag
-                dummy_image_2d_gt = dummy_image_3d[:, :, z]
 
                 # Subsample with factor = factor
-                factor = 2
-                for mask_type in range(0, 2):
-                # for mask_type in [0, 1, 2]:
-                    # Create mask
-                    mask = get_random_mask(w, h, factor=factor, start_line=mask_type, keep_center=0.0)
-                    # mask = get_random_mask(w, h, factor=factor, start_line=mask_type, keep_center=0.1)
-                    # mask = np.zeros((h, w), dtype=np.uint8)
-                    # x_rand = random.random()
-                    # y_rand = random.random()
-                    # movi_x = int(10*x_rand - 5)
-                    # movi_y = int(10*y_rand - 5)
-                    # mask[96+movi_x:160+movi_x, :] = 1
 
-                    # Get sub-sampled images, currently only on h axis
-                    dummy_image_2d = get_subsample(dummy_image_2d_gt, mask, factor_h=factor, factor_w=1)
-                    k_space_real = get_subsample(k_space_real_gt, mask, factor_h=factor, factor_w=1)
-                    k_space_imag = get_subsample(k_space_imag_gt, mask, factor_h=factor, factor_w=1)
-                    # dummy_image_2d = get_subsample(dummy_image_2d_gt, mask, factor_h=factor, factor_w=1, force_width=256)
-                    # k_space_real = get_subsample(k_space_real_gt, mask, factor_h=factor, factor_w=1, force_width=256)
-                    # k_space_imag = get_subsample(k_space_imag_gt, mask, factor_h=factor, factor_w=1, force_width=256)
+                aug=0
+                # Dump example
+                meta_data_to_write = self.create_meta_data(meta_data, case_name, z, aug, norm_factor)
+                self.dump_example(out_path, counter,
+                             dict(k_space_real_gt=k_space_real_gt, k_space_imag_gt=k_space_imag_gt,
+                                  meta_data=meta_data_to_write, image_gt=image_2d_gt), debug)
+                # Add to counter
+                counter += 1
+            # print "ONE EXAMPLE"
+            # exit()
 
-                    # Dump example
-                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z, factor, norm_factor)
-
-                    dump_example(out_path, counter,
-                                 dict(k_space_real_gt=k_space_real_gt, k_space_imag_gt=k_space_imag_gt,
-                                      image_gt=dummy_image_2d_gt, mask=mask, meta_data=meta_data_to_write,
-                                      k_space_real=k_space_real, k_space_imag=k_space_imag,
-                                      image=dummy_image_2d), debug)
-                    # Add to counter
-                    counter += 1
-
-    def create_meta_data(self, meta_data, case, axial_slice, factor, norm_factor):
+    def create_meta_data(self, meta_data, case, axial_slice, aug, norm_factor):
         """
         Create meta data vector
         :param meta_data: from mri data base
@@ -119,29 +120,50 @@ class DataCreator:
         """
         case_hash = np.float32(self.mri_data_base.info["case_to_hash"][case])
         bit_pix = np.float32(meta_data["bitpix"])
-        return np.array([case_hash, axial_slice, bit_pix, np.float32(factor), np.float32(norm_factor)], dtype=np.float32)
+        return np.array([case_hash, axial_slice, bit_pix, np.float32(aug), np.float32(norm_factor)], dtype=np.float32)
 
+    def dump_example(self, out_path, counter, data_all, debug=False):
+        """
+        write 1 example to disk
+        :param out_path: output path
+        :param counter: counter for count examples
+        :param data_all: dictionary of all data types
+        :param debug: show all data before dumping
+        :return: None
+        """
 
-def dump_example(out_path, counter, data_all, debug=False):
-    """
-    write 1 example to disk
-    :param out_path: output path
-    :param counter: counter for count examples
-    :param data_all: dictionary of all data types
-    :param debug: show all data before dumping
-    :return: None
-    """
+        if debug:
+            show_example(out_path, counter, data_all)
 
-    if debug:
-        show_example(out_path, counter, data_all)
+        for (name, data) in data_all.iteritems():
+            # Set file name
+            file_name = set_file_name(name, counter)
 
-    for (name, data) in data_all.iteritems():
-        # Set file name
-        file_name = set_file_name(name, counter)
+            # Create file handler and write to file
+            f_handler = FileHandler(os.path.join(out_path, file_name), self.file_info[name], "write")
+            f_handler.write(data.transpose())
 
-        # Create file handler and write to file
-        f_handler = FileHandler(os.path.join(out_path, file_name), get_file_info(name), "write")
-        f_handler.write(data.transpose())
+    def rotate(self, image):
+        """
+        Rotation of image
+        :param image:
+        :return:
+        """
+        if self.rot == 0:
+            ret = image
+        elif self.rot == 90:
+            print "ROTATE 90"
+            ret = np.rot90(image)
+        elif self.rot == 180:
+            print "ROTATE 180"
+            ret = np.rot90(np.rot90(image))
+        elif self.rot == 270:
+            print "ROTATE 270"
+            ret = np.rot90(np.rot90(np.rot90(image)))
+        else:
+            print "No valid rotation"
+            assert 0
+        return ret
 
 
 def set_file_name(name, counter):
@@ -185,7 +207,7 @@ def get_random_mask(w, h, factor, start_line=0, keep_center=0):
     return mask
 
 
-def get_random_gaussian_mask(im_shape=(256,256), peak_probability=0.8, std=64.0, keep_center=-1.0):
+def get_random_gaussian_mask(im_shape=(256,256), peak_probability=0.8, std=64.0, keep_center=-1.0, seed=None):
     """
     Get Random gauusian mask
     :param im_shape: 
@@ -193,10 +215,12 @@ def get_random_gaussian_mask(im_shape=(256,256), peak_probability=0.8, std=64.0,
     :param std: 
     :return: 
     """""
+    if seed is not None:
+        np.random.seed(seed)
+
     in_shape = np.array(im_shape).astype(np.float32)
 
     threshholds = peak_probability * scipy.signal.gaussian(im_shape[0], std)
-    # np.random.seed(0)
     row_mask = np.random.rand(im_shape[0])
 
     mask = np.zeros(im_shape[:2], dtype=np.uint8)
@@ -208,6 +232,22 @@ def get_random_gaussian_mask(im_shape=(256,256), peak_probability=0.8, std=64.0,
         mask[range(center_line-center_width, center_line + center_width, 1), :] = 1
 
     # factor = float(np.count_nonzero(np.ravel(mask))) / len(np.ravel(mask))
+    return mask
+
+
+def get_rv_mask(mask_main_dir, factor):
+    """
+    Get Random variable 2D mask - 256x256 mask
+    :param mask_main_dir: main mask directory
+    :param factor: sampling factor: 2.5, 4, 6, 8, 10, 20
+    :return: 
+    """""
+    full_path = os.path.join(mask_main_dir, "mask%s.bin" % factor)
+    if not os.path.exists(full_path):
+        print "Mask not exists"
+
+    mask = np.fromfile(full_path, dtype=np.uint8)
+    mask = mask.reshape(256,256)
     return mask
 
 

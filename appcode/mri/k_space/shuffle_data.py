@@ -40,10 +40,12 @@ def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123, data_ba
                 for example in all_examples:
                     base_input_path = os.path.dirname(example)
                     counter = os.path.basename(example).split('.')[0]
-                    data = np.fromfile(os.path.join(base_input_path, "%s.%s.bin" % (counter, file_name)),
-                                       dtype=file_info["dtype"])
-                    f_out.write(data)
-
+                    path_to_file = os.path.join(base_input_path, "%s.%s.bin" % (counter, file_name))
+                    if os.path.exists(path_to_file):
+                        data = np.fromfile(path_to_file, dtype=file_info["dtype"])
+                        f_out.write(data)
+                    else:
+                        print "Warning: the file - %s - not exist" % path_to_file
                     count_examples += 1
                     if np.mod(count_examples, 1000) == 0:
                         print "Done %d examples" % count_examples

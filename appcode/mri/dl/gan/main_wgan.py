@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask
-from appcode.mri.dl.gan.k_space_wgan_single import KSpaceSuperResolutionWGAN
+from appcode.mri.dl.gan.k_space_wgan import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -79,10 +79,6 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-with open(os.path.join(base_dir, "factors.json"), 'r') as f:
-    data_factors = json.load(f)
-
-FLAGS.data_factors = data_factors
 
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):

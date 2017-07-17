@@ -10,8 +10,8 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask
-from appcode.mri.dl.gan.k_space_wgan_single_im_complex import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
+from appcode.mri.dl.gan.k_space_wgan import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -22,10 +22,10 @@ from collections import defaultdict
 import shutil
 import inspect
 import random
+import time
 
 # k space data set on loca SSD
-base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
-base_dir = '/media/ohadsh/Data/ohadsh/work/data/ADNI/Normal/2017_06_28'
+base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
 # print("working on 140 lines images")
 # base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
 # file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
@@ -55,22 +55,12 @@ flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 flags.DEFINE_integer('num_D_updates', 5, 'Discriminator update freq')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
+flags.DEFINE_string('database', 'SchizReg', "data base name - for file info")
 flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
-
-# keep_center = 0.2
-# DIMS_IN = np.array([256, 256, 1])
-# DIMS_OUT = np.array([256, 256, 1])
-# sampling_factor = 2
-
-# keep_center = 0.1
-# DIMS_IN = np.array([256, 256, 1])
-# DIMS_OUT = np.array([256, 256, 1])
-# sampling_factor = 3
 
 keep_center = 0.05
 DIMS_IN = np.array([1, 256, 256])
 DIMS_OUT = np.array([1, 256, 256])
-sampling_factor = 2
 
 # flags.DEFINE_string('train_dir', args.train_dir,
 #                            """Directory where to write event logs """
@@ -80,10 +70,9 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-with open(os.path.join(base_dir, "factors.json"), 'r') as f:
-    data_factors = json.load(f)
-
-FLAGS.data_factors = data_factors
+# mask_single = get_random_gaussian_mask(im_shape=(DIMS_IN[1], DIMS_IN[2]), peak_probability=0.6, std=40.0, keep_center=keep_center, seed=0)
+mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor='4')
+sampling_factor = 2
 
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
@@ -109,26 +98,14 @@ def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     if len(real) == 0 or len(imag) == 0:
         return None
 
-    # start_line = int(10*random.random() - 5)
-    # mask = get_random_mask(w=DIMS_OUT[1], h=DIMS_OUT[2], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
-
-    mask = get_random_gaussian_mask(im_shape=(DIMS_OUT[1], DIMS_OUT[2]), peak_probability=0.7, std=45.0, keep_center=0.05)
+    start_line = int(10*random.random() - 5)
+    # mask_single = get_random_mask(w=DIMS_OUT[2], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
 
     feed = {y_input['real']: real[:,:,:,np.newaxis].transpose(0,3,1,2),
             y_input['imag']: imag[:,:,:,np.newaxis].transpose(0,3,1,2),
-            y_input['mask']: mask[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
+            y_input['mask']: mask_single[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
             train_phase: t_phase
            }
-
-    # real = feed[x_input['real']][5, :, :]
-    # imag = feed[x_input['imag']][5, :, :]
-    #
-    # from appcode.mri.k_spaceutils import get_image_from_kspace
-    # import matplotlib.pyplot as plt
-    # rec = get_image_from_kspace(real, imag)
-    # plt.imshow(rec, cmap='gray'); plt.show()
-    # import pdb
-    # pdb.set_trace()
     return feed
 
 
@@ -198,7 +175,7 @@ def train_model(mode, checkpoint=None):
         json.dump(FLAGS.__dict__, f)
 
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, data_base=FLAGS.database)
 
     net = load_graph()
 
@@ -235,7 +212,7 @@ def train_model(mode, checkpoint=None):
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
-
+        # tic = time.clock()
         if i % FLAGS.iters_no_adv == 0:
             gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
@@ -247,27 +224,32 @@ def train_model(mode, checkpoint=None):
                 feed[net.adv_loss_w] = gen_loss_adversarial
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
                 save_checkpoint(sess=sess, saver=saver, step=i)
-
+            # del feed
         else:
             # Training
             feed = feed_data(data_set, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
-            if feed is not None:
+            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
                 feed[net.adv_loss_w] = gen_loss_adversarial
                 # Update D network
                 for it in np.arange(FLAGS.num_D_updates):
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    _ = sess.run([net.__clip_weights__()])
+                    _ = sess.run([net.clip_weights])
 
                 # Update G network
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
+
             # import pdb
             # pdb.set_trace()
             # print(dbg[0].mean(), dbg[1].mean())
+            # del feed
+        # if i % 10 == 0:
+        #     toc = time.clock()
+        #     print("Time :%f" %(toc - tic))
 
     logfile.close()
 
@@ -281,7 +263,7 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     :return:
     """
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False, data_base=FLAGS.data_base)
 
     net = load_graph()
 
@@ -369,7 +351,7 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')
     parser.add_argument('--dump_debug', dest='dump_debug', type=bool, help='dump all images')
     parser.add_argument('--max_predict', dest='max_predict', type=int, default=5000,  help='maximum predict examples')
-
+    parser.add_argument('--database', dest='database', type=str, help='data base name - for file info')
     args = parser.parse_args()
 
     if args.mode == 'evaluate':
