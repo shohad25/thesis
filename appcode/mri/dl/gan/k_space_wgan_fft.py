@@ -140,42 +140,41 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Model convolutions
         # with tf.name_scope('real'):
-        out_dim = 16
+        out_dim = 32
         x_input_stack = tf.stack([x_real[:,0,:,:], x_imag[:,0,:,:]], axis=1)
         # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
 
-        self.conv_1, reg_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
+        self.conv_1, reg_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_1")
         self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
         self.relu_1 = tf.nn.relu(self.conv_1_bn)
         self.regularization_values.append(reg_1)
 
-        out_dim = 32
-        self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
+        out_dim = 64
+        self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_2")
         self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
         self.relu_2 = tf.nn.relu(self.conv_2_bn)
         self.regularization_values.append(reg_2)
 
-        out_dim = 64
-        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
+        out_dim = 128
+        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_3")
         self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
         self.regularization_values.append(reg_3)
 
-
-        out_dim = 32
-        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
+        out_dim = 64
+        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_4")
         self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
         self.relu_4 = tf.nn.relu(self.conv_4_bn)
         self.regularization_values.append(reg_4)
 
-        out_dim = 8
-        self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
+        out_dim = 32
+        self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_5")
         self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5")
         self.relu_5 = tf.nn.relu(self.conv_5_bn)
         self.regularization_values.append(reg_5)
 
         out_dim = 2
-        self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
+        self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_6")
         self.regularization_values.append(reg_6)
 
         predict = {}

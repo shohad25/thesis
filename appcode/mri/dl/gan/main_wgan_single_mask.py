@@ -12,6 +12,7 @@ import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
 from appcode.mri.dl.gan.k_space_wgan import KSpaceSuperResolutionWGAN
+# from appcode.mri.dl.gan.k_space_wgan_fft import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -53,6 +54,7 @@ flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
 flags.DEFINE_integer('num_D_updates', 5, 'Discriminator update freq')
+flags.DEFINE_integer('random_sampling_factor', 6, 'Random mask sampling factor')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
 flags.DEFINE_string('database', 'SchizReg', "data base name - for file info")
@@ -70,8 +72,7 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-# mask_single = get_random_gaussian_mask(im_shape=(DIMS_IN[1], DIMS_IN[2]), peak_probability=0.6, std=40.0, keep_center=keep_center, seed=0)
-mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor='4')
+mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
 sampling_factor = 2
 
 
@@ -351,6 +352,8 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')
     parser.add_argument('--dump_debug', dest='dump_debug', type=bool, help='dump all images')
     parser.add_argument('--max_predict', dest='max_predict', type=int, default=5000,  help='maximum predict examples')
+    parser.add_argument('--mini_batch_size', dest='mini_batch_size', type=int, default=5,  help='mini batch size')
+    parser.add_argument('--random_sampling_factor', dest='random_sampling_factor', type=int, default=6, help='Random mask sampling factor')
     parser.add_argument('--database', dest='database', type=str, help='data base name - for file info')
     args = parser.parse_args()
 
