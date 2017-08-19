@@ -30,7 +30,7 @@ for i in range(0,100):
     # Generating random mask
     # mask = get_random_gaussian_mask(im_shape=(160, 160), peak_probability=0.7, std=45.0, keep_center=0.05)
     # mask = get_random_gaussian_mask(im_shape=(256, 150), peak_probability=0.7, std=45.0, keep_center=0.05)
-    # mask = get_random_gaussian_mask(im_shape=(256, 150), peak_probability=0.7, std=45.0, keep_center=0.05)
+    # mask = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.05)
     mask = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor='6')
 
     reduction = np.sum(mask) / float(mask.ravel().shape[0])

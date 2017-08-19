@@ -15,7 +15,7 @@ tt = 'train'
 
 modality = 'T1'
 data_names = ['axial', 'coronal', 'sagittal']
-data_names = ['coronal', 'sagittal']
+data_names = ['sagittal']
 
 data_sets = {}
 for data_name in data_names:
@@ -47,7 +47,7 @@ for i in range(0, 100):
         mask = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.6, std=40.0, keep_center=0.05)
         # mask = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.2, std=10.0, keep_center=0.01)
 
-        random_vals = numpy.random.uniform(-0.1, 0.1, (256,256))
+        random_vals = numpy.random.uniform(-0.05, 0.05, (256,256))
 
         reduction = np.sum(mask) / float(mask.ravel().shape[0])
         print reduction

@@ -52,24 +52,15 @@ flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
 flags.DEFINE_integer('num_D_updates', 5, 'Discriminator update freq')
+flags.DEFINE_integer('random_sampling_factor', 6, 'Random mask sampling factor')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
+flags.DEFINE_string('database', 'SchizReg', "data base name - for file info")
 flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
-
-# keep_center = 0.2
-# DIMS_IN = np.array([256, 256, 1])
-# DIMS_OUT = np.array([256, 256, 1])
-# sampling_factor = 2
-
-# keep_center = 0.1
-# DIMS_IN = np.array([256, 256, 1])
-# DIMS_OUT = np.array([256, 256, 1])
-# sampling_factor = 3
 
 keep_center = 0.05
 DIMS_IN = np.array([1, 256, 256])
 DIMS_OUT = np.array([1, 256, 256])
-sampling_factor = 2
 
 # flags.DEFINE_string('train_dir', args.train_dir,
 #                            """Directory where to write event logs """
@@ -114,16 +105,6 @@ def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
             y_input['mask']: mask[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
             train_phase: t_phase
            }
-
-    # real = feed[x_input['real']][5, :, :]
-    # imag = feed[x_input['imag']][5, :, :]
-    #
-    # from appcode.mri.k_space.utils import get_image_from_kspace
-    # import matplotlib.pyplot as plt
-    # rec = get_image_from_kspace(real, imag)
-    # plt.imshow(rec, cmap='gray'); plt.show()
-    # import pdb
-    # pdb.set_trace()
     return feed
 
 
@@ -193,7 +174,7 @@ def train_model(mode, checkpoint=None):
         json.dump(FLAGS.__dict__, f)
 
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, data_base=FLAGS.database)
 
     net = load_graph()
 
@@ -247,19 +228,20 @@ def train_model(mode, checkpoint=None):
             # Training
             feed = feed_data(data_set, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
-            if feed is not None:
+            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
                 feed[net.adv_loss_w] = gen_loss_adversarial
                 # Update D network
                 for it in np.arange(FLAGS.num_D_updates):
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    _ = sess.run([net.__clip_weights__()])
+                    _ = sess.run([net.clip_weights])
 
                 # Update G network
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
+
             # import pdb
             # pdb.set_trace()
             # print(dbg[0].mean(), dbg[1].mean())
@@ -276,7 +258,7 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     :return:
     """
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False, data_base=FLAGS.data_base)
 
     net = load_graph()
 
@@ -364,7 +346,9 @@ if __name__ == '__main__':
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')
     parser.add_argument('--dump_debug', dest='dump_debug', type=bool, help='dump all images')
     parser.add_argument('--max_predict', dest='max_predict', type=int, default=5000,  help='maximum predict examples')
-
+    parser.add_argument('--mini_batch_size', dest='mini_batch_size', type=int, default=5,  help='mini batch size')
+    parser.add_argument('--random_sampling_factor', dest='random_sampling_factor', type=int, default=6, help='Random mask sampling factor')
+    parser.add_argument('--database', dest='database', type=str, help='data base name - for file info')
     args = parser.parse_args()
 
     if args.mode == 'evaluate':

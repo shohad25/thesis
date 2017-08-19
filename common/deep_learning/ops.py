@@ -45,26 +45,27 @@ def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, dat
 
 
 def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="conv2d_transpose", data_format='NCHW', with_w=False):
+    in_channels = input_.get_shape()[-1] if data_format == 'NHWC' else input_.get_shape()[1]
+    out_channels = output_shape[-1] if data_format == 'NHWC' else output_shape[1]
     with tf.variable_scope(name):
         # filter : [height, width, output_channels, in_channels]
-        w = tf.get_variable('w', [k_h, k_h, output_shape[-1], input_.get_shape()[-1]],
+        w = tf.get_variable('w', [k_h, k_h, out_channels, in_channels],
                             initializer=tf.contrib.layers.xavier_initializer())
-
         try:
+            # TODO: Currently support only NCHW
             deconv = tf.nn.conv2d_transpose(input_, w, output_shape=output_shape,
-                                strides=[1, d_h, d_w, 1], data_format=data_format)
+                                strides=[1, 1, d_h, d_w], data_format=data_format)
 
         # Support for verisons of TensorFlow before 0.7.0
         except AttributeError:
             deconv = tf.nn.deconv2d(input_, w, output_shape=output_shape,
-                                strides=[1, d_h, d_w, 1], data_format=data_format)
+                                strides=[1, 1, d_h, d_w], data_format=data_format)
 
-        biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.0))
+        biases = tf.get_variable('biases', [out_channels], initializer=tf.constant_initializer(0.0))
         # deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
         deconv = tf.nn.bias_add(deconv, biases, data_format=data_format)
 
         reg = tf.nn.l2_loss(w) + tf.nn.l2_loss(biases)
-
         if with_w:
             return deconv, w, biases, reg
         else:
@@ -140,4 +141,3 @@ def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_ch
     all_reg = reg_1 + reg_2
 
     return relu_2, all_reg
-

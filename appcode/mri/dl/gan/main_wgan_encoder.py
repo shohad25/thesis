@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.k_space_wgan import KSpaceSuperResolutionWGAN
+from appcode.mri.dl.gan.k_space_wgan_encoder import KSpaceSuperResolutionWGAN
 # from appcode.mri.dl.gan.k_space_wgan_fft import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
