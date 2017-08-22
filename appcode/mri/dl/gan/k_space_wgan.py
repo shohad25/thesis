@@ -42,7 +42,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.x_input_upscale = {}
         self.debug = None
         self.batch_size = self.FLAGS.mini_batch_size
-        self.reg_w = self.FLAGS.regularization_weight
+        # self.reg_w = self.FLAGS.regularization_weight
         self.regularization_values = []
         self.regularization_sum = None
 
@@ -144,39 +144,33 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         x_input_stack = tf.stack([x_real[:,0,:,:], x_imag[:,0,:,:]], axis=1)
         # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
 
-        self.conv_1, reg_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
+        self.conv_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
         self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
         self.relu_1 = tf.nn.relu(self.conv_1_bn)
-        self.regularization_values.append(reg_1)
 
         out_dim = 32
-        self.conv_2, reg_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
+        self.conv_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
         self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
         self.relu_2 = tf.nn.relu(self.conv_2_bn)
-        self.regularization_values.append(reg_2)
 
         out_dim = 64
-        self.conv_3, reg_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
+        self.conv_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
         self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
-        self.regularization_values.append(reg_3)
 
 
         out_dim = 32
-        self.conv_4, reg_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
+        self.conv_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
         self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
         self.relu_4 = tf.nn.relu(self.conv_4_bn)
-        self.regularization_values.append(reg_4)
 
         out_dim = 8
-        self.conv_5, reg_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
+        self.conv_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
         self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5")
         self.relu_5 = tf.nn.relu(self.conv_5_bn)
-        self.regularization_values.append(reg_5)
 
         out_dim = 2
-        self.conv_6, reg_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
-        self.regularization_values.append(reg_6)
+        self.conv_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
 
         predict = {}
         predict['real'] = tf.reshape(self.conv_6[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
@@ -224,44 +218,40 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Model convolutions
         out_dim = 8  # 128x128
-        self.conv_1_d, reg_1_d = ops.conv2d(input_to_discriminator, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_1")
+        self.conv_1_d = ops.conv2d(input_to_discriminator, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_1")
         self.pool_1_d = tf.layers.max_pooling2d(self.conv_1_d, pool_size=[2, 2], strides=2, padding='same',
                                               data_format='channels_first',name="D_pool_1")
         self.conv_1_bn_d = ops.batch_norm(self.pool_1_d, self.train_phase, decay=0.98, name="D_bn1")
         # self.relu_1_d = tf.nn.relu(self.conv_1_bn_d)
         self.relu_1_d = ops.lrelu(self.conv_1_bn_d)
-        self.regularization_values_d.append(reg_1_d)
 
         out_dim = 16  # 64x64
-        self.conv_2_d, reg_2_d = ops.conv2d(self.relu_1_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
+        self.conv_2_d = ops.conv2d(self.relu_1_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
                                             name="D_conv_2")
         self.pool_2_d = tf.layers.max_pooling2d(self.conv_2_d, pool_size=[2, 2], strides=2, padding='same',
                                               data_format='channels_first',name="D_pool_2")
         self.conv_2_bn_d = ops.batch_norm(self.pool_2_d, self.train_phase, decay=0.98, name="D_bn2")
         # self.relu_2_d = tf.nn.relu(self.conv_2_bn_d)
         self.relu_2_d = ops.lrelu(self.conv_2_bn_d)
-        self.regularization_values_d.append(reg_2_d)
 
         # out_dim = 32  # 32x32
         out_dim = 8  # 32x32
-        self.conv_3_d, reg_3_d = ops.conv2d(self.relu_2_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
+        self.conv_3_d = ops.conv2d(self.relu_2_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
                                             name="D_conv_3")
         self.pool_3_d = tf.layers.max_pooling2d(self.conv_3_d, pool_size=[2, 2], strides=2, padding='same',
                                               data_format='channels_first',name="D_pool_3")
         self.conv_3_bn_d = ops.batch_norm(self.pool_3_d, self.train_phase, decay=0.98, name="D_bn3")
         # self.relu_3_d = tf.nn.relu(self.conv_3_bn_d)
         self.relu_3_d = ops.lrelu(self.conv_3_bn_d)
-        self.regularization_values_d.append(reg_3_d)
 
         # out_dim = 16  # 16x16
-        # self.conv_4_d, reg_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
+        # self.conv_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
         #                                     name="D_conv_4")
         #self.pool_4_d = tf.layers.max_pooling2d(self.conv_4_d, pool_size=[2, 2], strides=2, padding='same',
         #                                      data_format='channels_first',name="D_pool_4")
         # self.conv_4_bn_d = ops.batch_norm(self.pool_4_d, self.train_phase, decay=0.98, name="D_bn4")
         # # self.relu_4_d = tf.nn.relu(self.conv_4_bn_d)
         # self.relu_4_d = ops.lrelu(self.conv_4_bn_d)
-        # self.regularization_values_d.append(reg_4_d)
 
         out_dim = 1
         self.affine_1_d = ops.linear(tf.contrib.layers.flatten(self.relu_3_d), output_size=out_dim, scope="D_affine_1")
@@ -276,29 +266,24 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         Calculate loss
         :return:
         """
-        # regularization ?
+        with tf.variable_scope("discriminator") as scope:
+            self.d_loss_real = tf.reduce_mean(self.predict_d_logits)
+            tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
+            scope.reuse_variables()
+            self.d_loss_fake = tf.reduce_mean(self.predict_d_logits_for_g)
+            tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
-        # self.d_loss_real = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d, targets=tf.ones_like(self.predict_d)))
-        self.d_loss_real = tf.reduce_mean(self.predict_d_logits)
-
-        tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
-
-        # self.d_loss_fake = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.zeros_like(self.predict_d_for_g)))
-        self.d_loss_fake = tf.reduce_mean(self.predict_d_logits_for_g)
-
-        tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
-
-        # self.d_loss = self.d_loss_real + self.d_loss_fake
         self.d_loss = self.d_loss_fake - self.d_loss_real
-
         tf.summary.scalar('d_loss', self.d_loss, collections='D')
 
-        if len(self.regularization_values_d) > 0:
-            reg_loss_d = self.reg_w * tf.reduce_sum(self.regularization_values_d)
-            self.d_loss += reg_loss_d
-            if self.FLAGS.dump_debug:
-                tf.summary.scalar('d_loss_plus_reg', self.d_loss, collections='D')
-                tf.summary.scalar('d_loss_reg_only', reg_loss_d, collections='D')
+        # if len(self.regularization_values_d) > 0:
+        # reg_loss_d = self.reg_w * tf.reduce_sum(self.regularization_values_d)
+        self.reg_loss_d = self.get_weights_regularization(dump=self.FLAGS.dump_debug, collection='D')
+        self.d_loss_no_reg = self.d_loss
+        self.d_loss += self.reg_loss_d
+        if self.FLAGS.dump_debug:
+            tf.summary.scalar('d_loss_plus_reg', self.d_loss, collections='D')
+            tf.summary.scalar('d_loss_reg_only', self.reg_loss_d, collections='D')
 
         # Generative loss
         # g_loss = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
@@ -319,12 +304,14 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # self.g_loss = self.FLAGS.gen_loss_adversarial * g_loss + self.FLAGS.gen_loss_context * context_loss
         tf.summary.scalar('g_loss_plus_context', self.g_loss, collections='G')
 
-        if len(self.regularization_values) > 0:
-            reg_loss_g = self.reg_w * tf.reduce_sum(self.regularization_values)
-            self.g_loss += reg_loss_g
-            if self.FLAGS.dump_debug:
-                tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G')
-                tf.summary.scalar('g_loss_reg_only', reg_loss_g, collections='D')
+        # if len(self.regularization_values) > 0:
+        # reg_loss_g = self.reg_w * tf.reduce_sum(self.regularization_values)
+        self.reg_loss_g = self.get_weights_regularization(dump=self.FLAGS.dump_debug, collection='G')
+        self.g_loss_no_reg = self.g_loss
+        self.g_loss += self.reg_loss_g
+        if self.FLAGS.dump_debug:
+            tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G')
+            tf.summary.scalar('g_loss_reg_only', self.reg_loss_g, collections='D')
 
         tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G')
 
@@ -413,3 +400,25 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         shifted_image_two_channels = tf.stack([shifted_image[:,0,:,:], shifted_image_imag[:,0,:,:]], axis=1)
         return shifted_image_two_channels
+
+    def get_weights_regularization(self, dump=False, collection=None):
+        """
+        Calculate sum of regularization (L2)
+        :param dump: dump to tensorboard
+        :return:
+        """
+        if collection is None:
+            w_collection = tf.get_collection('regularization_w')
+            b_collection = tf.get_collection('regularization_b')
+        else:
+            w_collection = [var for var in tf.get_collection('regularization_w') if collection in var.name]
+            b_collection = [var for var in tf.get_collection('regularization_b') if collection in var.name]
+
+        reg_w = tf.add_n(w_collection, name='regularization_w') if len(w_collection) > 0 else 0
+        reg_b = tf.add_n(b_collection, name='regularization_b') if len(b_collection) > 0 else 0
+
+        if dump:
+            tf.summary.scalar('Regularization - W', reg_w, collections=collection)
+            tf.summary.scalar('Regularization - b', reg_b, collections=collection)
+
+        return self.FLAGS.reg_w * reg_w + self.FLAGS.reg_b * reg_b

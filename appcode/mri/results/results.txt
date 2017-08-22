@@ -1,0 +1,26 @@
+Results from 22.08.2017
+Data IXI:
+
+Random mask Factor 4:
+1.	random_mask_factor4
+	discriminator updates = 4
+	snapshot - /media/ohadsh/sheard/Ohad/temp/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-340000/
+	Results 5000 examples:
+		MSE-ZERO = 140.167938
+		MSE-PROPOSED = 30.151222
+		PSNR-MEAN-ZERO = 26.698312 [dB]
+			PSNR-MEAN-PROPOSED = 33.371750 [dB]
+		PSNR-STD-ZERO = 2.236049 [dB]
+		PSNR-STD-PROPOSED = 2.523804 [dB]
+
+2.	random_mask_factor4_D1
+	discriminator updates = 1
+	snapshot - /media/ohadsh/sheard/Ohad/temp/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-360000
+	Results 5000 examples:
+		MSE-ZERO = 140.167938
+		MSE-PROPOSED = 28.718344
+		PSNR-MEAN-ZERO = 26.698312 [dB]
+			PSNR-MEAN-PROPOSED = 33.583206 [dB]
+		PSNR-STD-ZERO = 2.236049 [dB]
+		PSNR-STD-PROPOSED = 2.605834 [dB]
+

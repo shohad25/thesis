@@ -29,7 +29,7 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 
-def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d"):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d", hist=False):
 
     if in_channels is None:
         in_channels = input_.get_shape()[-1] if data_format == 'NHWC' else input_.get_shape()[1]
@@ -40,8 +40,12 @@ def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, dat
         conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME', data_format=data_format)
         biases = tf.get_variable('b', [output_dim], initializer=tf.constant_initializer(0.0))
         conv = tf.nn.bias_add(conv, biases, data_format=data_format)
-        reg = tf.nn.l2_loss(w) + tf.nn.l2_loss(biases)
-        return conv, reg
+        collect_reg(dict(w=w, b=biases))
+
+        if hist:
+            tf.summary.histogram(name=name+"_w", values=w, collections='G')
+            tf.summary.histogram(name=name + "_b", values=biases, collections='G')
+        return conv
 
 
 def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="conv2d_transpose", data_format='NCHW', with_w=False):
@@ -65,11 +69,11 @@ def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="con
         # deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
         deconv = tf.nn.bias_add(deconv, biases, data_format=data_format)
 
-        reg = tf.nn.l2_loss(w) + tf.nn.l2_loss(biases)
+        collect_reg(dict(w=w, b=biases))
         if with_w:
-            return deconv, w, biases, reg
+            return deconv, w, biases
         else:
-            return deconv, reg
+            return deconv
 
 
 def lrelu(x, leak=0.2, name="lrelu"):
@@ -79,7 +83,7 @@ def lrelu(x, leak=0.2, name="lrelu"):
         return f1 * x + f2 * abs(x)
 
 
-def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False):
+def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=False):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
@@ -87,6 +91,12 @@ def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False):
                                  tf.contrib.layers.xavier_initializer())
         bias = tf.get_variable("bias", [output_size],
             initializer=tf.constant_initializer(bias_start))
+        if hist:
+            tf.summary.histogram(name="linear" + "_w", values=matrix, collections='G')
+            tf.summary.histogram(name="linear" + "_b", values=bias, collections='G')
+
+        collect_reg(dict(w=matrix, b=bias))
+
         if with_w:
             return tf.matmul(input_, matrix) + bias, matrix, bias
         else:
@@ -126,18 +136,27 @@ def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_ch
     :return:
     """
 
-    conv_1, reg_1 = conv2d(input_, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
+    conv_1 = conv2d(input_, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
                                in_channels=in_channels, data_format=data_format, name=name+"_conv_1")
     conv_1_bn = batch_norm(conv_1, train_phase, decay=0.98, name=name+"_bn_1", data_format=data_format)
     relu_1 = tf.nn.relu(conv_1_bn, name=name+"_relu_1")
 
-    conv_2, reg_2 = conv2d(relu_1, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
+    conv_2= conv2d(relu_1, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
                                in_channels=in_channels, data_format=data_format, name=name+"_conv_2")
     conv_2_bn = batch_norm(conv_2, train_phase, decay=0.98, name=name+"_bn_2", data_format=data_format)
 
     addition = input_ + conv_2_bn
     relu_2 = tf.nn.relu(addition, name=name+"_relu_2")
 
-    all_reg = reg_1 + reg_2
+    return relu_2
 
-    return relu_2, all_reg
+def collect_reg(reg_dict):
+    """
+    Collect all regularization weights
+    :param reg_dict:
+    :return:
+    """
+    for (reg_name, var) in reg_dict.iteritems():
+        # Currently only L2
+        reg_value = tf.nn.l2_loss(var, name='reg_' + reg_name)
+        tf.add_to_collection("regularization_" + reg_name, reg_value)

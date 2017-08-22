@@ -6,13 +6,18 @@ import matplotlib.pyplot as plt
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.utils import get_image_from_kspace, interpolated_missing_samples, zero_padding
 from common.files_IO.file_handler import FileHandler
-from appcode.mri.k_space.data_creator import get_random_mask, get_subsample, get_random_gaussian_mask, get_rv_mask
+from appcode.mri.k_space.data_creator import get_random_mask, get_subsample
 from common.viewers.imshow import imshow
-file_names = ['k_space_real_gt', 'k_space_imag_gt']
+file_names = ['image_gt', 'k_space_real_gt', 'k_space_imag_gt']
 mini_batch = 50
 from scipy import ndimage
 from collections import defaultdict
 from scipy import stats
+
+# base_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
+with open(os.path.join(base_dir, "factors.json"), 'r') as f:
+    data_factors = json.load(f)
 
 start_line = 0    
 
@@ -28,7 +33,9 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     :return:
     """
 
+    method = 'bilinear'
     predict_info = {'width': w, 'height': h, 'channels': 1, 'dtype': 'float32'}
+    interp_info = {'width': w, 'height': h, 'channels': 2, 'dtype': 'float32'}
 
     f_predict = defaultdict(dict)
     for (pred_name, pred_path) in predict_paths.iteritems():
@@ -37,6 +44,9 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
                                                        info=predict_info, read_or_write='read', name=pred_name)
             f_predict[pred_name]['imag'] = FileHandler(path=os.path.join(pred_path, "000000.predict_imag.bin"),
                                                        info=predict_info, read_or_write='read', name=pred_name)
+
+    f_interp_mc = FileHandler(path=predict_paths['interp'], info=interp_info, read_or_write='read', name='interp_mc')
+
     data_set = KspaceDataSet(data_dir, file_names, stack_size=50, shuffle=False)
 
     data_set_tt = getattr(data_set, tt)
@@ -44,7 +54,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     error_zero_all = []
     error_interp_all = []
     error_proposed_all = []
-    num_of_batches = 100
+    num_of_batches = 1
     batches = 0
     # while data_set_tt.epoch == 0:
     while batches < num_of_batches:
@@ -54,8 +64,13 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
         pred_real = {pred_name: pred_io['real'].read(n=mini_batch, reshaped=True) for (pred_name, pred_io) in f_predict.iteritems()}
         pred_imag = {pred_name: pred_io['imag'].read(n=mini_batch, reshaped=True) for (pred_name, pred_io) in f_predict.iteritems()}
 
+        mc_interp = f_interp_mc.read(n=mini_batch, reshaped=True)
+
         real_p = {pred_name: pred_data for pred_name, pred_data in pred_real.iteritems()}
         imag_p = {pred_name: pred_data for pred_name, pred_data in pred_imag.iteritems()}
+
+        real_interp = mc_interp[:,0,:,:]
+        imag_interp = mc_interp[:,1,:,:]
 
         name_1 = real_p.keys()[0]
         elements_in_batch = real_p[name_1].shape[0]
@@ -70,23 +85,36 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
             # Interpolation
-            # mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
-            mask = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=sampling_factor)
-            reduction = np.sum(mask) / float(mask.ravel().shape[0])
+            mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+            # reduction = np.sum(mask) / float(mask.ravel().shape[0])
             # print (reduction)
+            k_space_real_gt_int = data["k_space_real_gt"][i,:,:] * mask
+            k_space_imag_gt_int = data["k_space_imag_gt"][i,:,:] * mask
 
             k_space_real_gt_zero = data["k_space_real_gt"][i,:,:] * mask
             k_space_imag_gt_zero = data["k_space_imag_gt"][i,:,:] * mask
+
+            for line in range(0,255):
+                missing_line = np.all(mask[line, :] == 0)
+                if missing_line:
+                    k_space_real_gt_int[line, :] = 0.5*(k_space_real_gt_int[line-1, :] + k_space_real_gt_int[line+1, :])
+                    k_space_imag_gt_int[line, :] = 0.5*(k_space_imag_gt_int[line-1, :] + k_space_imag_gt_int[line+1, :])
+            # k_space_amp_interp = np.log(np.sqrt(k_space_real_gt_int**2 + k_space_imag_gt_int**2))
+
+            rec_image_interp = get_image_from_kspace(k_space_real_gt_int,k_space_imag_gt_int)
             rec_image_zero = get_image_from_kspace(k_space_real_gt_zero,k_space_imag_gt_zero)
+
 
             # Network predicted model 1
             rec_image_1 = get_image_from_kspace(real_p[name_1], imag_p[name_1])[i,:,:].T
             # k_space_amp_predict_1 = np.log(np.sqrt(real_p[name_1]**2 + imag_p[name_1]**2))[i,:,:].T
 
             error_proposed = np.sum((rec_image_1 - org_image)**2)
+            error_interp = np.sum((rec_image_interp - org_image)**2)
             error_zero = np.sum((rec_image_zero - org_image)**2)
 
             error_zero_all.append(error_zero)
+            error_interp_all.append(error_interp)
             error_proposed_all.append(error_proposed)
 
         batches += 1
@@ -95,20 +123,27 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     mse_zero = np.array(error_zero_all).mean()
     print stats.ttest_1samp(error_zero_all, mse_zero)
 
+    mse_interp = np.array(error_interp_all).mean()
+    print stats.ttest_1samp(error_interp_all, mse_interp)
+
     mse_proposed = np.array(error_proposed_all).mean()
     print stats.ttest_1samp(error_proposed_all, mse_proposed)
 
     psnr_std_zero = psnr(np.array(error_zero_all)).std()
+    psnr_std_interp = psnr(np.array(error_interp_all)).std()
     psnr_std_proposed = psnr(np.array(error_proposed_all)).std()
     print stats.ttest_1samp(psnr(np.array(error_proposed_all)), psnr_std_proposed)
 
     print("MSE-ZERO = %f" % mse_zero)
+    print("MSE-INTERP = %f" % mse_interp)
     print("MSE-PROPOSED = %f" % mse_proposed)
 
     print("PSNR-MEAN-ZERO = %f [dB]" % psnr(mse_zero))
+    print("PSNR-MEAN-INTERP = %f [dB]" % psnr(mse_interp))
     print("PSNR-MEAN-PROPOSED = %f [dB]" % psnr(mse_proposed))
 
     print("PSNR-STD-ZERO = %f [dB]" % psnr_std_zero)
+    print("PSNR-STD-INTERP = %f [dB]" % psnr_std_interp)
     print("PSNR-STD-PROPOSED = %f [dB]" % psnr_std_proposed)
 
 
@@ -118,20 +153,24 @@ def psnr(mse):
     return psnr
 
 if __name__ == '__main__':
-    
-    data_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
+    # data_dir = '/home/ohadsh/work/data/SchizReg/24_05_2016/'
+    data_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/'
     keep_center = 0.05
     DIMS_IN = np.array([256, 256, 1])
     DIMS_OUT = np.array([256, 256, 1])
-    sampling_factor = 4
+    sampling_factor = 2
 
-    predict = {'random_mask_factor4_single': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/predict/train/'}
-    # predict = {'random_mask_factor4_D1': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/predict/train/'}
+    predict = {'2017_03_09_ver7_005': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/singleNets/2017_03_09_ver7_factor_005/predict/train/',
+               'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+               }
+
+    # predict = {'ONLY_L2': '/media/ohadsh/sheard/googleDrive/Master/runs/factor_2_phase/gan/only_L2/predict/train/',
+    #            'interp': '/sheard/googleDrive/Master/runs/factor_2_phase/gan/2017_02_21_fft/000000.interp.bin'
+    #            }
 
 
     w = 256
     h = 256
     tt = 'train'
     show = False
-    print predict
     post_train_2v(data_dir, predict, h, w, tt, show, keep_center=keep_center, DIMS_IN=DIMS_IN, DIMS_OUT=DIMS_OUT, sampling_factor=sampling_factor)

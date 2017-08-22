@@ -34,13 +34,14 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
-
-flags.DEFINE_float('learning_rate', 1e-4, 'Initial learning rate.')
-flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
+flags.DEFINE_float('learning_rate', 0.00005, 'Initial learning rate.')
+# flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
+flags.DEFINE_float('reg_w', 5e-4, 'L2 Norm regularization weight.')
+flags.DEFINE_float('reg_b', 5e-4, 'L2 Norm regularization weight.')
 # flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_size', 5, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
-flags.DEFINE_integer('max_predict', 9999999999, 'Number of steps to run trainer.')
+flags.DEFINE_integer('max_predict', 5000, 'Number of steps to run trainer.')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
 # flags.DEFINE_float('gen_loss_adversarial', 1.0, 'Generative loss, adversarial weight.')
@@ -53,8 +54,10 @@ flags.DEFINE_integer('print_test', 10000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 1000, 'Print train frequency')
 
 flags.DEFINE_integer('num_gen_updates', 20, 'Print train frequency')
+flags.DEFINE_integer('random_sampling_factor', 6, 'Random mask sampling factor')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
+flags.DEFINE_string('database', 'SchizReg', "data base name - for file info")
 flags.DEFINE_boolean('dump_debug', False, 'wide_debug_tensorboard')
 
 # keep_center = 0.2
@@ -80,10 +83,7 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-with open(os.path.join(base_dir, "factors.json"), 'r') as f:
-    data_factors = json.load(f)
-
-FLAGS.data_factors = data_factors
+#mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
 
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
@@ -146,13 +146,13 @@ def run_evaluation(sess, feed, net, step, writer, tt):
     m_op_g = tf.summary.merge_all(key='G')
     m_op_d = tf.summary.merge_all(key='D')
 
-    r_g, r_d, loss_d_fake, loss_d_real, loss_d, loss_g, l2_norm = sess.run([m_op_g, m_op_d, net.d_loss_fake, net.d_loss_real,
-                                                                   net.d_loss, net.g_loss, net.evaluation], feed_dict=feed)
+    r_g, r_d, loss_d_fake, loss_d_real, loss_d, loss_g, l2_norm, g_loss_no_reg, d_loss_no_reg = sess.run([m_op_g, m_op_d, net.d_loss_fake, net.d_loss_real,
+                                                                   net.d_loss, net.g_loss, net.evaluation, net.g_loss_no_reg, net.d_loss_no_reg], feed_dict=feed)
 
     writer['G'].add_summary(r_g, step)
     writer['D'].add_summary(r_d, step)
 
-    print('%s:  Time: %s , Loss at step %s: D: %s, G: %s, L2: %s' % (tt, datetime.datetime.now(), step, loss_d, loss_g, l2_norm))
+    print('%s:  Time: %s , Loss at step %s: D: %s, D_no_reg: %s, G: %s, G_no_reg: %s, L2: %s' % (tt, datetime.datetime.now(), step, loss_d, d_loss_no_reg, loss_g, g_loss_no_reg, l2_norm))
     logfile.writelines('%s: Time: %s , Accuracy at step %s: D: %s, G: %s, L2: %s\n' % (tt, datetime.datetime.now(), step, loss_d, loss_g, l2_norm))
     logfile.flush()
 
@@ -198,7 +198,7 @@ def train_model(mode, checkpoint=None):
         json.dump(FLAGS.__dict__, f)
 
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, data_base=FLAGS.database)
 
     net = load_graph()
 
@@ -282,7 +282,7 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     :return:
     """
     # Import data
-    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False)
+    data_set = KspaceDataSet(base_dir, file_names.values(), stack_size=50, shuffle=False, data_base=FLAGS.database)
 
     net = load_graph()
 
@@ -369,7 +369,12 @@ if __name__ == '__main__':
     parser.add_argument('--gen_loss_context', dest='gen_loss_context', type=float, help='gen_loss_context')
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')
     parser.add_argument('--dump_debug', dest='dump_debug', type=bool, help='dump all images')
-    parser.add_argument('--max_predict', dest='max_predict', type=int, default=999999999999,  help='maximum predict examples')
+    parser.add_argument('--max_predict', dest='max_predict', type=int, default=5000,  help='maximum predict examples')
+    parser.add_argument('--mini_batch_size', dest='mini_batch_size', type=int, default=5,  help='mini batch size')
+    parser.add_argument('--random_sampling_factor', dest='random_sampling_factor', type=int, default=6, help='Random mask sampling factor')
+    parser.add_argument('--database', dest='database', type=str, help='data base name - for file info')
+    parser.add_argument('--reg_w', dest='reg_w', type=float, default=5e-4, help='regularization w')
+    parser.add_argument('--reg_b', dest='reg_b', type=float, default=5e-4, help='regularization b')
 
     args = parser.parse_args()
 
