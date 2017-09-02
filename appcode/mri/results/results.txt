@@ -1,26 +1,101 @@
 Results from 22.08.2017
 Data IXI:
 
-Random mask Factor 4:
+
+################################################## Random mask Factor 4 ##########################################
+Results 5000 examples:
+
+Zero padding:
+MSE-ZERO = 138.766846
+PSNR-MEAN-ZERO = 26.741942 [dB]
+PSNR-STD-ZERO = 2.339061 [dB]
+
+CS-MRI:
+MEAN = 34.582979698942225 (2458 samples)
+STD = 2.6636461380601357
+
 1.	random_mask_factor4
 	discriminator updates = 4
 	snapshot - /media/ohadsh/sheard/Ohad/temp/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-340000/
-	Results 5000 examples:
-		MSE-ZERO = 140.167938
 		MSE-PROPOSED = 30.151222
-		PSNR-MEAN-ZERO = 26.698312 [dB]
-			PSNR-MEAN-PROPOSED = 33.371750 [dB]
-		PSNR-STD-ZERO = 2.236049 [dB]
+		PSNR-MEAN-PROPOSED = 33.371750 [dB]
 		PSNR-STD-PROPOSED = 2.523804 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-790000
+		MSE-PROPOSED = 27.185770
+		PSNR-MEAN-PROPOSED = 33.821383 [dB]
+		PSNR-STD-PROPOSED = 2.759889 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-880000
+		MSE-PROPOSED = 26.945799
+		PSNR-MEAN-PROPOSED = 33.859889 [dB]
+		PSNR-STD-PROPOSED = 2.765222 [dB]
 
 2.	random_mask_factor4_D1
 	discriminator updates = 1
 	snapshot - /media/ohadsh/sheard/Ohad/temp/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-360000
-	Results 5000 examples:
-		MSE-ZERO = 140.167938
 		MSE-PROPOSED = 28.718344
-		PSNR-MEAN-ZERO = 26.698312 [dB]
-			PSNR-MEAN-PROPOSED = 33.583206 [dB]
-		PSNR-STD-ZERO = 2.236049 [dB]
+		PSNR-MEAN-PROPOSED = 33.583206 [dB]
 		PSNR-STD-PROPOSED = 2.605834 [dB]
 
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-1330000
+		MSE-PROPOSED = 26.010630
+		PSNR-MEAN-PROPOSED = 34.013290 [dB]
+		PSNR-STD-PROPOSED = 2.645701 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-2270000
+		MSE-PROPOSED = 24.943628
+		PSNR-MEAN-PROPOSED = 34.195203 [dB]
+		PSNR-STD-PROPOSED = 2.828023 [dB]
+
+
+3.	random_mask_factor4_D1_bias_zero
+	discriminator updates = 1
+	bias decay = 0.0
+	snspahot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_bias_zero/model.ckpt-1810000
+		MSE-PROPOSED = 29.435221
+		PSNR-MEAN-PROPOSED = 33.476126 [dB]
+		PSNR-STD-PROPOSED = 2.348437 [dB]
+
+
+
+4.	random_mask_factor4_D1_bias_zero_L2weighted
+	discriminator updates = 1
+	bias decay = 0.0
+	L2 weight = 100
+	snspahot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_bias_zero_L2weighted/model.ckpt-440000
+		MSE-PROPOSED = 32.559452
+		PSNR-MEAN-PROPOSED = 33.038028 [dB]
+		PSNR-STD-PROPOSED = 2.186593 [dB]
+
+
+################################################## Random mask Factor 6 ##########################################
+Results 5000 examples:
+
+Zero padding:
+MSE-ZERO = 1285.482056
+PSNR-MEAN-ZERO = 17.074139 [dB]
+PSNR-STD-ZERO = 2.673718 [dB]
+
+CS-MRI:
+
+
+1.	random_mask_factor6_D2
+	discriminator updates = 2
+	snspahot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor6_D2/model.ckpt-1070000
+		MSE-PROPOSED = 119.890587
+		PSNR-MEAN-PROPOSED = 27.376948 [dB]
+		PSNR-STD-PROPOSED = 3.421560 [dB]
+
+2.	random_mask_factor6_D2_biasZero
+	discriminator updates = 2
+	snspahot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor6_D2_biasZero/model.ckpt-130000
+		MSE-PROPOSED = 146.700714
+		PSNR-MEAN-PROPOSED = 26.500477 [dB]
+		PSNR-STD-PROPOSED = 3.491237 [dB]
+
+
+
+
+	//
+	python statistics.py --data_base IXI_T1 --sampling_factor 6 --tt train --predict_name random_mask_factor4_single --predict_path /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/predict/train/ --checkpoint /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-790000

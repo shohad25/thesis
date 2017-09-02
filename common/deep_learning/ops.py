@@ -29,7 +29,7 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 
-def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d", hist=False):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d", hist=True):
 
     if in_channels is None:
         in_channels = input_.get_shape()[-1] if data_format == 'NHWC' else input_.get_shape()[1]
@@ -83,7 +83,7 @@ def lrelu(x, leak=0.2, name="lrelu"):
         return f1 * x + f2 * abs(x)
 
 
-def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=False):
+def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=True):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
