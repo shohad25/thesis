@@ -14,7 +14,7 @@ CS-MRI:
 MEAN = 34.582979698942225 (2458 samples)
 STD = 2.6636461380601357
 
-1.	random_mask_factor4
+1.	random_mask_factor4_single
 	discriminator updates = 4
 	snapshot - /media/ohadsh/sheard/Ohad/temp/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-340000/
 		MSE-PROPOSED = 30.151222
@@ -30,6 +30,17 @@ STD = 2.6636461380601357
 		MSE-PROPOSED = 26.945799
 		PSNR-MEAN-PROPOSED = 33.859889 [dB]
 		PSNR-STD-PROPOSED = 2.765222 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-1400000
+		MSE-PROPOSED = 26.005573
+		PSNR-MEAN-PROPOSED = 34.014135 [dB]
+		PSNR-STD-PROPOSED = 2.784107 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-2100000
+		MSE-PROPOSED = 25.359798
+		PSNR-MEAN-PROPOSED = 34.123341 [dB]
+		PSNR-STD-PROPOSED = 2.794429 [dB]
+
 
 2.	random_mask_factor4_D1
 	discriminator updates = 1
@@ -47,6 +58,17 @@ STD = 2.6636461380601357
 		MSE-PROPOSED = 24.943628
 		PSNR-MEAN-PROPOSED = 34.195203 [dB]
 		PSNR-STD-PROPOSED = 2.828023 [dB]
+	
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-2740000
+		MSE-PROPOSED = 24.292814
+		PSNR-MEAN-PROPOSED = 34.310021 [dB]
+		PSNR-STD-PROPOSED = 2.861602 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-3340000
+		MSE-PROPOSED = 22.770859
+		PSNR-MEAN-PROPOSED = 34.591005 [dB]
+		PSNR-STD-PROPOSED = 2.939233 [dB]
+
 
 
 3.	random_mask_factor4_D1_bias_zero
@@ -56,6 +78,16 @@ STD = 2.6636461380601357
 		MSE-PROPOSED = 29.435221
 		PSNR-MEAN-PROPOSED = 33.476126 [dB]
 		PSNR-STD-PROPOSED = 2.348437 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_bias_zero/model.ckpt-2930000
+		MSE-PROPOSED = 28.312000
+		PSNR-MEAN-PROPOSED = 33.645094 [dB]
+		PSNR-STD-PROPOSED = 2.396883 [dB
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_bias_zero/model.ckpt-3240000
+		MSE-PROPOSED = 28.029331
+		PSNR-MEAN-PROPOSED = 33.688672 [dB]
+		PSNR-STD-PROPOSED = 2.410424 [dB]
 
 
 
@@ -68,6 +100,17 @@ STD = 2.6636461380601357
 		PSNR-MEAN-PROPOSED = 33.038028 [dB]
 		PSNR-STD-PROPOSED = 2.186593 [dB]
 
+	snspahot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_bias_zero_L2weighted/model.ckpt-1550000		
+		MSE-PROPOSED = 27.606031
+		PSNR-MEAN-PROPOSED = 33.754760 [dB]
+		PSNR-STD-PROPOSED = 2.454648 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_bias_zero_L2weighted/model.ckpt-1860000
+		MSE-PROPOSED = 26.190184
+		PSNR-MEAN-PROPOSED = 33.983414 [dB]
+		PSNR-STD-PROPOSED = 2.649267 [dB]
+
+
 
 ################################################## Random mask Factor 6 ##########################################
 Results 5000 examples:
@@ -78,7 +121,9 @@ PSNR-MEAN-ZERO = 17.074139 [dB]
 PSNR-STD-ZERO = 2.673718 [dB]
 
 CS-MRI:
-
+something aroung 29.19
+PSNR-MEAN-CS = 28.561676509090912
+PSNR-STD-CS = 3.6353399666692416
 
 1.	random_mask_factor6_D2
 	discriminator updates = 2
@@ -87,6 +132,7 @@ CS-MRI:
 		PSNR-MEAN-PROPOSED = 27.376948 [dB]
 		PSNR-STD-PROPOSED = 3.421560 [dB]
 
+
 2.	random_mask_factor6_D2_biasZero
 	discriminator updates = 2
 	snspahot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor6_D2_biasZero/model.ckpt-130000
@@ -94,6 +140,15 @@ CS-MRI:
 		PSNR-MEAN-PROPOSED = 26.500477 [dB]
 		PSNR-STD-PROPOSED = 3.491237 [dB]
 
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor6_D2_biasZero/model.ckpt-1000000
+		MSE-PROPOSED = 97.309509
+		PSNR-MEAN-PROPOSED = 28.283246 [dB]
+		PSNR-STD-PROPOSED = 2.824119 [dB]
+
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor6_D2_biasZero/model.ckpt-2370000
+		MSE-PROPOSED = 92.876717
+		PSNR-MEAN-PROPOSED = 28.485731 [dB]
+		PSNR-STD-PROPOSED = 2.760201 [dB]
 
 
 
