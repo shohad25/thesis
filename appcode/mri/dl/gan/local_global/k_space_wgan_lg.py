@@ -225,7 +225,10 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         out_dim = 16
         self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_2")
         self.conv_2_bn_g2 = ops.batch_norm(self.conv_2_g2, self.train_phase, decay=0.98, name="G_2_bn2")
-        self.relu_2_g2 = tf.nn.relu(self.conv_2_bn_g2)
+
+        self.conv_2_bn_g2_residual = self.conv_2_bn_g2 + reconstructed_image
+
+        self.relu_2_g2 = tf.nn.relu(self.conv_2_bn_g2_residual)
 
         out_dim = 1
         self.conv_3_g2 = ops.conv2d(self.relu_2_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_3")
