@@ -41,6 +41,10 @@ STD = 2.6636461380601357
 		PSNR-MEAN-PROPOSED = 34.123341 [dB]
 		PSNR-STD-PROPOSED = 2.794429 [dB]
 
+	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_single/model.ckpt-4090000
+		MSE-PROPOSED = 24.578659
+		PSNR-MEAN-PROPOSED = 34.259217 [dB]
+		PSNR-STD-PROPOSED = 2.803443 [dB]
 
 2.	random_mask_factor4_D1
 	discriminator updates = 1
