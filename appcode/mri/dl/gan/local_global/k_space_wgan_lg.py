@@ -74,6 +74,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
                                                        imag=reconstructed_image_reference[:,1,:,:]), axis=1)
             reconstructed_image_reference = tf.abs(reconstructed_image_reference)
 
+            self.reconstructed_image_reference = reconstructed_image_reference
+
             self.predict, self.predict_logits = self.__D__([reconstructed_image_reference, self.predict_g2])
 
             self.predict_d, self.predict_d_for_g = tf.split(value=self.predict, num_or_size_splits=2, axis=0)
@@ -316,16 +318,21 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
-        # Context loss L2
+        # Context loss L2 k-space
         mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
         real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], mask_not))
         imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], mask_not))
         self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
         print("You are using L2 loss")
-
         tf.summary.scalar('g_loss_context_only', self.context_loss, collections='G')
 
-        self.g_loss = self.adv_loss_w * g_loss + self.FLAGS.gen_loss_context * self.context_loss
+        # Context loss L2 image
+        image_diff = tf.contrib.layers.flatten(self.reconstructed_image_reference - self.predict_g2)
+        self.context_loss_image = tf.reduce_mean(tf.square(image_diff), name='Context_loss_mean_image')
+        print("You are using L2 loss for image too")
+        tf.summary.scalar('g_2_loss_context_only_image', self.context_loss_image, collections='G')
+
+        self.g_loss = self.adv_loss_w * g_loss + self.FLAGS.gen_loss_context * (self.context_loss + self.context_loss_image)
         # self.g_loss = self.FLAGS.gen_loss_adversarial * g_loss + self.FLAGS.gen_loss_context * context_loss
         tf.summary.scalar('g_loss_plus_context', self.g_loss, collections='G')
 
