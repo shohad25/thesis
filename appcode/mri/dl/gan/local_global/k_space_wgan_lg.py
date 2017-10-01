@@ -221,21 +221,23 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         out_dim = 8
         self.conv_1_g2 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_1")
-        self.conv_1_bn_g2 = ops.batch_norm(self.conv_1_g2, self.train_phase, decay=0.98, name="G_2_bn1")
-        self.relu_1_g2 = tf.nn.relu(self.conv_1_bn_g2)
+        #self.conv_1_bn_g2 = ops.batch_norm(self.conv_1_g2, self.train_phase, decay=0.98, name="G_2_bn1")
+        self.relu_1_g2 = tf.nn.relu(self.conv_1_g2)
 
         out_dim = 16
         self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_2")
-        self.conv_2_bn_g2 = ops.batch_norm(self.conv_2_g2, self.train_phase, decay=0.98, name="G_2_bn2")
+        #self.conv_2_bn_g2 = ops.batch_norm(self.conv_2_g2, self.train_phase, decay=0.98, name="G_2_bn2")
 
-        self.conv_2_bn_g2_residual = self.conv_2_bn_g2 + reconstructed_image
-
-        self.relu_2_g2 = tf.nn.relu(self.conv_2_bn_g2_residual)
+        self.relu_2_g2 = tf.nn.relu(self.conv_2_g2)
 
         out_dim = 1
         self.conv_3_g2 = ops.conv2d(self.relu_2_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_3")
-        self.g2_out = self.conv_3_g2
-        tf.add_to_collection("predict", self.g2_out)
+
+        self.conv_3_g2_residual = self.conv_3_g2 + reconstructed_image
+
+	self.g2_out = self.conv_3_g2_residual
+
+	tf.add_to_collection("predict", self.g2_out)
 
         return self.g2_out
 
@@ -251,11 +253,10 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # pdb.set_trace()
         tf.summary.image('D_x_input_reconstructed' + 'Original', tf.transpose(org, (0,2,3,1)), collections='D', max_outputs=4)
         tf.summary.image('D_x_input_reconstructed' + 'Fake', tf.transpose(fake, (0,2,3,1)), collections='G', max_outputs=4)
-
         input_to_discriminator = tf.concat(input_to_discriminator, axis=0)
 
         # Model convolutions
-        out_dim = 8  # 128x128
+        out_dim = 16  # 128x128
         self.conv_1_d = ops.conv2d(input_to_discriminator, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="D_conv_1")
         self.pool_1_d = tf.layers.max_pooling2d(self.conv_1_d, pool_size=[2, 2], strides=2, padding='same',
                                               data_format='channels_first',name="D_pool_1")
@@ -263,7 +264,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # self.relu_1_d = tf.nn.relu(self.conv_1_bn_d)
         self.relu_1_d = ops.lrelu(self.conv_1_bn_d)
 
-        out_dim = 16  # 64x64
+        out_dim = 32  # 64x64
         self.conv_2_d = ops.conv2d(self.relu_1_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
                                             name="D_conv_2")
         self.pool_2_d = tf.layers.max_pooling2d(self.conv_2_d, pool_size=[2, 2], strides=2, padding='same',
@@ -273,7 +274,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.relu_2_d = ops.lrelu(self.conv_2_bn_d)
 
         # out_dim = 32  # 32x32
-        out_dim = 8  # 32x32
+        out_dim = 16  # 32x32
         self.conv_3_d = ops.conv2d(self.relu_2_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
                                             name="D_conv_3")
         self.pool_3_d = tf.layers.max_pooling2d(self.conv_3_d, pool_size=[2, 2], strides=2, padding='same',

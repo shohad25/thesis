@@ -255,7 +255,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         out_dim = 1
         self.affine_1_d = ops.linear(tf.contrib.layers.flatten(self.relu_3_d), output_size=out_dim, scope="D_affine_1")
-        # self.affine_1_d = ops.linear(tf.contrib.layers.flatten(self.relu_4_d), output_size=out_dim, scope="D_affine_1")
         predict_d = self.affine_1_d
         # Dump prediction out
 

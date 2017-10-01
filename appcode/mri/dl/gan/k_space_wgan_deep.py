@@ -140,7 +140,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Model convolutions
         # with tf.name_scope('real'):
-        out_dim = 32
+        out_dim = 16
         x_input_stack = tf.stack([x_real[:,0,:,:], x_imag[:,0,:,:]], axis=1)
         # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
 
@@ -148,12 +148,12 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
         self.relu_1 = tf.nn.relu(self.conv_1_bn)
 
-        out_dim = 64
+        out_dim = 32
         self.conv_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
         self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
         self.relu_2 = tf.nn.relu(self.conv_2_bn)
 
-        out_dim = 128
+        out_dim = 48
         self.conv_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
         self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
@@ -260,9 +260,9 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         out_dim = 16  # 16x16
         self.conv_5_d = ops.conv2d(self.relu_4_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
                                    name="D_conv_5")
-        self.pool_5_d = tf.layers.max_pooling2d(self.conv_5_d, pool_size=[2, 2], strides=2, padding='same',
-                                                data_format='channels_first', name="D_pool_5")
-        self.conv_5_bn_d = ops.batch_norm(self.pool_5_d, self.train_phase, decay=0.98, name="D_bn5")
+#        self.pool_5_d = tf.layers.max_pooling2d(self.conv_5_d, pool_size=[2, 2], strides=2, padding='same',
+#                                                data_format='channels_first', name="D_pool_5")
+        self.conv_5_bn_d = ops.batch_norm(self.conv_5_d, self.train_phase, decay=0.98, name="D_bn5")
         self.relu_5_d = ops.lrelu(self.conv_5_bn_d)
 
         out_dim = 1
@@ -343,13 +343,17 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.d_vars = [var for var in t_vars if 'D_' in var.name]
         self.g_vars = [var for var in t_vars if 'G_' in var.name]
 
-        # Create RMSProb optimizer with the given learning rate.
-        optimizer_d = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
-        optimizer_g = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
 
         # Create a variable to track the global step.
         global_step_d = tf.Variable(0, name='global_step_d', trainable=False)
         global_step_g = tf.Variable(0, name='global_step_g', trainable=False)
+
+        # Create RMSProb optimizer with the given learning rate.
+        #lr_d = tf.train.exponential_decay(learning_rate=self.FLAGS.learning_rate, global_step=global_step_d, decay_steps=100000, decay_rate=0.96, staircase=False, name=None)
+        #lr_g = tf.train.exponential_decay(learning_rate=self.FLAGS.learning_rate, global_step=global_step_g, decay_steps=100000, decay_rate=0.96, staircase=False, name=None)
+        optimizer_d = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
+        optimizer_g = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
+
 
         # Use the optimizer to apply the gradients that minimize the loss
         # (and also increment the global step counter) as a single training step.
