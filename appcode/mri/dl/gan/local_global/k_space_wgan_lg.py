@@ -26,6 +26,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.FLAGS = FLAGS
         self.train_phase = train_phase
         self.predict_g = None
+        self.predict_g2 = None
         self.adv_loss_w = adv_loss_w
 
         self.predict_d = None
@@ -147,7 +148,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # with tf.name_scope('real'):
         out_dim = 16
         x_input_stack = tf.stack([x_real[:,0,:,:], x_imag[:,0,:,:]], axis=1)
-        # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
 
         self.conv_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
         self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
@@ -162,7 +162,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.conv_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
         self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
-
 
         out_dim = 32
         self.conv_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
@@ -216,28 +215,41 @@ class KSpaceSuperResolutionWGAN(BasicModel):
                                                              imag=reconstructed_image[:, 1, :, :]), dim=1)
         reconstructed_image = tf.abs(reconstructed_image)
 
-        tf.summary.image('G2_reconstructed_input' + 'Fake_from_G', tf.transpose(reconstructed_image, (0, 2, 3, 1)), collections='G',
-                         max_outputs=4)
+        tf.summary.image('G2_reconstructed_input' + 'Fake_from_G', tf.transpose(reconstructed_image, (0, 2, 3, 1)),
+                         collections='G', max_outputs=4)
 
-        out_dim = 8
-        self.conv_1_g2 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_1")
-        #self.conv_1_bn_g2 = ops.batch_norm(self.conv_1_g2, self.train_phase, decay=0.98, name="G_2_bn1")
+        out_dim = 16  # -> 128x128
+        # self.conv_1_g2 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_1")
+        self.conv_1_g2 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=2, d_w=2, name="G_2_conv_1")
+        self.conv_1_bn_g2 = ops.batch_norm(self.conv_1_g2, self.train_phase, decay=0.98, name="G_2_bn1")
         self.relu_1_g2 = tf.nn.relu(self.conv_1_g2)
 
-        out_dim = 16
-        self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_2")
-        #self.conv_2_bn_g2 = ops.batch_norm(self.conv_2_g2, self.train_phase, decay=0.98, name="G_2_bn2")
-
+        out_dim = 32  # -> 64x64
+        # self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_2")
+        self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=2, d_w=2, name="G_2_conv_2")
+        self.conv_2_bn_g2 = ops.batch_norm(self.conv_2_g2, self.train_phase, decay=0.98, name="G_2_bn2")
         self.relu_2_g2 = tf.nn.relu(self.conv_2_g2)
 
+        out_dim = 48  # -> 128x128
+        out_shape = [self.batch_size, out_dim, 128, 128]
+        self.conv_3_g2 = ops.conv2d_transpose(self.relu_2_g2, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2,
+                                              name="G_2_deconv_3")
+        self.conv_3_bn_g2 = ops.batch_norm(self.conv_3_g2, self.train_phase, decay=0.98, name="G_3_bn3")
+        self.relu_3_g2 = tf.nn.relu(self.conv_3_g2)
+
+        out_dim = 16  # -> 256x256
+        out_shape = [self.batch_size, out_dim, 256, 256]
+        self.conv_4_g2 = ops.conv2d_transpose(self.relu_3_g2, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2,
+                                              name="G_2_deconv_4")
+        self.conv_4_bn_g2 = ops.batch_norm(self.conv_4_g2, self.train_phase, decay=0.98, name="G_3_bn4")
+        self.relu_4_g2 = tf.nn.relu(self.conv_4_g2)
+
         out_dim = 1
-        self.conv_3_g2 = ops.conv2d(self.relu_2_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_3")
+        self.conv_5_g2 = ops.conv2d(self.relu_4_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_5")
 
-        self.conv_3_g2_residual = self.conv_3_g2 + reconstructed_image
-
-	self.g2_out = self.conv_3_g2_residual
-
-	tf.add_to_collection("predict", self.g2_out)
+        self.g2_out = reconstructed_image - self.conv_5_g2
+        
+        tf.add_to_collection("predict", self.g2_out)
 
         return self.g2_out
 

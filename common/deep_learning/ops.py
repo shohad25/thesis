@@ -29,7 +29,7 @@ def conv_cond_concat(x, y):
     return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
 
 
-def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d", hist=True):
+def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d", hist=False):
 
     if in_channels is None:
         in_channels = input_.get_shape()[-1] if data_format == 'NHWC' else input_.get_shape()[1]
@@ -37,7 +37,7 @@ def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, dat
     with tf.variable_scope(name):
         w = tf.get_variable('w', [k_h, k_w, in_channels, output_dim],
                             initializer=tf.contrib.layers.xavier_initializer())
-        conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME', data_format=data_format)
+        conv = tf.nn.conv2d(input_, w, strides=[1, 1, d_h, d_w], padding='SAME', data_format=data_format)
         biases = tf.get_variable('b', [output_dim], initializer=tf.constant_initializer(0.0))
         conv = tf.nn.bias_add(conv, biases, data_format=data_format)
         collect_reg(dict(w=w, b=biases))
@@ -83,7 +83,7 @@ def lrelu(x, leak=0.2, name="lrelu"):
         return f1 * x + f2 * abs(x)
 
 
-def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=True):
+def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=False):
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
