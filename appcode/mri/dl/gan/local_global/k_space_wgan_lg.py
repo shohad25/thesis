@@ -104,42 +104,39 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         x_real = self.input['real'] * self.input['mask']
         x_imag = self.input['imag'] * self.input['mask']
 
-        in_shape = x_real.get_shape().as_list()
-        in_shape = [self.FLAGS.mini_batch_size, in_shape[1], in_shape[2], in_shape[3]]
-
         print "Noise level: (-0.01,0.01)"
         minval = -0.01
         maxval = 0.01
 
-        noise_real = mask_not * tf.random_uniform(shape=in_shape, minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_real')
-        noise_imag = mask_not * tf.random_uniform(shape=in_shape, minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_imag')
+        noise_real = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_real')
+        noise_imag = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_imag')
 
         x_real += noise_real
         x_imag += noise_imag
 
-        if self.FLAGS.dump_debug:
-            tf.summary.image('G_mask', tf.transpose(self.labels['mask'], (0, 2, 3, 1)), collections='G', max_outputs=1)
-            tf.summary.image('noise_real', tf.transpose(noise_real, (0, 2, 3, 1)), collections='G', max_outputs=1)
-            tf.summary.image('noise_image', tf.transpose(noise_imag, (0, 2, 3, 1)), collections='G', max_outputs=1)
-            tf.summary.image('x_real_noise', tf.transpose(x_real, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('x_image_noise', tf.transpose(x_imag, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('x_input_real', tf.transpose(self.input['real'], (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('x_input_image', tf.transpose(self.input['imag'], (0, 2, 3, 1)), collections='G', max_outputs=2)
-
-            image_with_noise_padding = self.get_reconstructed_image(real=x_real, imag=x_imag, name='NoisePadding')
-            image_with_zero_padding = self.get_reconstructed_image(real=self.input['real'] * self.input['mask'],
-                                                                    imag=self.input['imag'] * self.input['mask'], name='NoisePadding')
-            image_debug = self.get_reconstructed_image(real=self.input['real'],
-                                                                    imag=self.input['imag'], name='RegularDebug')
-            image_with_noise_padding = tf.expand_dims(input=tf.abs(tf.complex(real=image_with_noise_padding[:,0,:,:],
-                                                                              imag=image_with_noise_padding[:,1,:,:])), dim=1)
-            image_with_zero_padding = tf.expand_dims(input=tf.abs(tf.complex(real=image_with_zero_padding[:,0,:,:],
-                                                                             imag=image_with_zero_padding[:,1,:,:])), dim=1)
-            image_debug = tf.expand_dims(input=tf.abs(tf.complex(real=image_debug[:,0,:,:],
-                                                                              imag=image_debug[:,1,:,:])), dim=1)
-            tf.summary.image('image_noise_padding', tf.transpose(image_with_noise_padding, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('image_zero_padding', tf.transpose(image_with_zero_padding, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('image_zero_padding', tf.transpose(image_debug, (0, 2, 3, 1)), collections='G', max_outputs=2)
+        # if self.FLAGS.dump_debug:
+        #     tf.summary.image('G_mask', tf.transpose(self.labels['mask'], (0, 2, 3, 1)), collections='G', max_outputs=1)
+        #     tf.summary.image('noise_real', tf.transpose(noise_real, (0, 2, 3, 1)), collections='G', max_outputs=1)
+        #     tf.summary.image('noise_image', tf.transpose(noise_imag, (0, 2, 3, 1)), collections='G', max_outputs=1)
+        #     tf.summary.image('x_real_noise', tf.transpose(x_real, (0, 2, 3, 1)), collections='G', max_outputs=2)
+        #     tf.summary.image('x_image_noise', tf.transpose(x_imag, (0, 2, 3, 1)), collections='G', max_outputs=2)
+        #     tf.summary.image('x_input_real', tf.transpose(self.input['real'], (0, 2, 3, 1)), collections='G', max_outputs=2)
+        #     tf.summary.image('x_input_image', tf.transpose(self.input['imag'], (0, 2, 3, 1)), collections='G', max_outputs=2)
+        #
+        #     image_with_noise_padding = self.get_reconstructed_image(real=x_real, imag=x_imag, name='NoisePadding')
+        #     image_with_zero_padding = self.get_reconstructed_image(real=self.input['real'] * self.input['mask'],
+        #                                                             imag=self.input['imag'] * self.input['mask'], name='NoisePadding')
+        #     image_debug = self.get_reconstructed_image(real=self.input['real'],
+        #                                                             imag=self.input['imag'], name='RegularDebug')
+        #     image_with_noise_padding = tf.expand_dims(input=tf.abs(tf.complex(real=image_with_noise_padding[:,0,:,:],
+        #                                                                       imag=image_with_noise_padding[:,1,:,:])), dim=1)
+        #     image_with_zero_padding = tf.expand_dims(input=tf.abs(tf.complex(real=image_with_zero_padding[:,0,:,:],
+        #                                                                      imag=image_with_zero_padding[:,1,:,:])), dim=1)
+        #     image_debug = tf.expand_dims(input=tf.abs(tf.complex(real=image_debug[:,0,:,:],
+        #                                                                       imag=image_debug[:,1,:,:])), dim=1)
+        #     tf.summary.image('image_noise_padding', tf.transpose(image_with_noise_padding, (0, 2, 3, 1)), collections='G', max_outputs=2)
+        #     tf.summary.image('image_zero_padding', tf.transpose(image_with_zero_padding, (0, 2, 3, 1)), collections='G', max_outputs=2)
+        #     tf.summary.image('image_zero_padding', tf.transpose(image_debug, (0, 2, 3, 1)), collections='G', max_outputs=2)
 
         self.x_input_upscale['real'] = x_real
         self.x_input_upscale['imag'] = x_imag
@@ -248,7 +245,12 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.conv_5_g2 = ops.conv2d(self.relu_4_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_5")
 
         self.g2_out = reconstructed_image - self.conv_5_g2
-        
+
+        if self.FLAGS.dump_debug:
+            tf.summary.image('G_2_output_no_res', tf.transpose(self.conv_5_g2, (0, 2, 3, 1)), collections='G', max_outputs=4)
+            tf.summary.image('G_2_output_plus_res', tf.transpose(self.g2_out, (0, 2, 3, 1)), collections='G', max_outputs=4)
+            tf.summary.image('G_2_with_artifacts', tf.transpose(reconstructed_image, (0, 2, 3, 1)), collections='G', max_outputs=4)
+
         tf.add_to_collection("predict", self.g2_out)
 
         return self.g2_out
