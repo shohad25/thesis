@@ -304,12 +304,12 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                     f_out_imag.write(predict['imag'].ravel())
                 if output_file_interp is not None:
                     f_interp.write(np.concatenate([x_interp['real'], x_interp['imag']], axis=3).ravel())
-
-            predict_counter += FLAGS.mini_batch_predict
+            else:
+                break
+            predict_counter += FLAGS.mini_batch_size
             print("Done - " + str(predict_counter))
             if predict_counter >= FLAGS.max_predict:
                 break
-
 
     if output_file is not None:
         f_out_real.close()
