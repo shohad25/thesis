@@ -132,27 +132,27 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # self.conv_1_g2 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_1")
         self.conv_1_g2 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=2, d_w=2, name="G_2_conv_1")
         self.conv_1_bn_g2 = ops.batch_norm(self.conv_1_g2, self.train_phase, decay=0.98, name="G_2_bn1")
-        self.relu_1_g2 = tf.nn.relu(self.conv_1_g2)
+        self.relu_1_g2 = tf.nn.relu(self.conv_1_bn_g2)
 
         out_dim = 32  # -> 64x64
         # self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_2")
         self.conv_2_g2 = ops.conv2d(self.relu_1_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=2, d_w=2, name="G_2_conv_2")
         self.conv_2_bn_g2 = ops.batch_norm(self.conv_2_g2, self.train_phase, decay=0.98, name="G_2_bn2")
-        self.relu_2_g2 = tf.nn.relu(self.conv_2_g2)
+        self.relu_2_g2 = tf.nn.relu(self.conv_2_bn_g2)
 
         out_dim = 48  # -> 128x128
         out_shape = [self.batch_size, out_dim, 128, 128]
         self.conv_3_g2 = ops.conv2d_transpose(self.relu_2_g2, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2,
                                               name="G_2_deconv_3")
         self.conv_3_bn_g2 = ops.batch_norm(self.conv_3_g2, self.train_phase, decay=0.98, name="G_3_bn3")
-        self.relu_3_g2 = tf.nn.relu(self.conv_3_g2)
+        self.relu_3_g2 = tf.nn.relu(self.conv_3_bn_g2)
 
         out_dim = 16  # -> 256x256
         out_shape = [self.batch_size, out_dim, 256, 256]
         self.conv_4_g2 = ops.conv2d_transpose(self.relu_3_g2, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2,
                                               name="G_2_deconv_4")
         self.conv_4_bn_g2 = ops.batch_norm(self.conv_4_g2, self.train_phase, decay=0.98, name="G_3_bn4")
-        self.relu_4_g2 = tf.nn.relu(self.conv_4_g2)
+        self.relu_4_g2 = tf.nn.relu(self.conv_4_bn_g2)
 
         out_dim = 2
         self.conv_5_g2 = ops.conv2d(self.relu_4_g2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_2_conv_5")
