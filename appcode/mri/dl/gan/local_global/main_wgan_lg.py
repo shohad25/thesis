@@ -73,7 +73,8 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
+# mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
+mask_single = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.1, seed=0)
 
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
@@ -309,7 +310,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
             print("Done - " + str(predict_counter))
             if predict_counter >= FLAGS.max_predict:
                 break
-
 
     if output_file is not None:
         f_out_real.close()
