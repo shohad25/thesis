@@ -98,12 +98,17 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         x_real = self.input['real'] * self.input['mask']
         x_imag = self.input['imag'] * self.input['mask']
 
-        print "Noise level: (-0.01,0.01)"
-        minval = -0.01
-        maxval = 0.01
+        # print "Noise level: (-0.01,0.01)"
+        # minval = -0.01
+        # maxval = 0.01
+        # noise_real = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_real')
+        # noise_imag = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_imag')
 
-        noise_real = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_real')
-        noise_imag = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_imag')
+        mean_g = 0.0
+        std_g = 0.1
+        print "Normal Noise level: mean=%f, std=%f" % (mean_g, std_g)
+        noise_real = mask_not * tf.random_normal(shape=tf.shape(x_real), mean=mean_g, stddev=std_g, dtype=tf.float32, seed=None, name='z_real')
+        noise_imag = mask_not * tf.random_normal(shape=tf.shape(x_real), mean=mean_g, stddev=std_g, dtype=tf.float32, seed=None, name='z_imag')
 
         x_real += noise_real
         x_imag += noise_imag
