@@ -103,7 +103,7 @@ def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=F
             return tf.matmul(input_, matrix) + bias
 
 
-def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
+def batch_norm_old(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
@@ -119,6 +119,23 @@ def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
     with tf.variable_scope(name) as scope:
         return tf.contrib.layers.batch_norm(in_tensor, is_training=phase_train, decay=decay, scope=scope, fused=True,
                                             data_format=data_format)
+
+def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
+    """
+    Batch normalization on convolutional maps.
+    Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
+    Args:
+        x:           Tensor, 4D BHWD input maps
+        n_out:       integer, depth of input maps
+        phase_train: boolean tf.Varialbe, true indicates training phase
+        scope:       string, variable scope
+        decay:       decay factor
+    Return:
+        normed:      batch-normalized maps
+    """
+    with tf.variable_scope(name) as scope:
+        axis = 1 if data_format == 'NCHW' else -1
+        return tf.layers.batch_normalization(in_tensor, training=phase_train, momentum=decay, scale=scope, axis=axis, fused=True)
 
 
 def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d"):
@@ -186,7 +203,7 @@ def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.n
             net = tf.layers.conv2d(net, F, (3, 3), activation=None, padding='same', name="conv_{}".format(i + 1),
                                    data_format=data_format_type)
             axis = 1 if data_format == 'NCHW' else -1
-            net = tf.layers.batch_normalization(net, training=training, name="bn_{}".format(i + 1), axis=axis)
+            net = tf.layers.batch_normalization(net, training=training, name="bn_{}".format(i + 1), axis=axis, fused=True)
             net = activation(net, name="relu{}_{}".format(name, i + 1))
 
         if pool is False:
@@ -213,6 +230,7 @@ def upsample_concat(inputA, input_B, name, data_format='NCHW'):
     else:
         res = tf.concat([upsample, input_B], axis=-1, name="concat_{}".format(name))
     return res
+
 
 def upsampling_2D(tensor, name, data_format='NCHW', size=(2, 2)):
     """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
