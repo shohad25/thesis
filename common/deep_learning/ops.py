@@ -160,3 +160,85 @@ def collect_reg(reg_dict):
         # Currently only L2
         reg_value = tf.nn.l2_loss(var, name='reg_' + reg_name)
         tf.add_to_collection("regularization_" + reg_name, reg_value)
+
+
+def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.nn.relu, data_format='NCHW'):
+    """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
+    {Conv -> BN -> RELU}x2 -> {Pool, optional}
+    Args:
+        input_ (4-D Tensor): (batch_size, H, W, C)
+        n_filters (list): number of filters [int, int]
+        training (1-D Tensor): Boolean Tensor
+        name (str): name postfix
+        pool (bool): If True, MaxPool2D
+        activation: Activaion functions
+    Returns:
+        net: output of the Convolution operations
+        pool (optional): output of the max pooling operations
+    """
+    net = input_
+
+    # with tf.variable_scope("layer{}".format(name)):
+    data_format_type = 'channels_first' if data_format == 'NCHW' else 'channels last'
+    with tf.variable_scope(name):
+        for i, F in enumerate(n_filters):
+
+            net = tf.layers.conv2d(net, F, (3, 3), activation=None, padding='same', name="conv_{}".format(i + 1),
+                                   data_format=data_format_type)
+            axis = 1 if data_format == 'NCHW' else -1
+            net = tf.layers.batch_normalization(net, training=training, name="bn_{}".format(i + 1), axis=axis)
+            net = activation(net, name="relu{}_{}".format(name, i + 1))
+
+        if pool is False:
+            return net
+
+        pool = tf.layers.max_pooling2d(net, (2, 2), data_format=data_format_type, strides=(2, 2), name="pool_{}".format(name))
+        return net, pool
+
+
+def upsample_concat(inputA, input_B, name, data_format='NCHW'):
+    """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
+    Upsample `inputA` and concat with `input_B`
+    Args:
+        input_A (4-D Tensor): (N, H, W, C)
+        input_B (4-D Tensor): (N, 2*H, 2*H, C2)
+        name (str): name of the concat operation
+    Returns:
+        output (4-D Tensor): (N, 2*H, 2*W, C + C2)
+    """
+    upsample = upsampling_2D(inputA, data_format=data_format, size=(2, 2), name=name)
+
+    if data_format == 'NCHW':
+        res = tf.concat([upsample, input_B], axis=1, name="concat_{}".format(name))
+    else:
+        res = tf.concat([upsample, input_B], axis=-1, name="concat_{}".format(name))
+    return res
+
+def upsampling_2D(tensor, name, data_format='NCHW', size=(2, 2)):
+    """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
+    Upsample/Rescale `tensor` by size
+    Args:
+        tensor (4-D Tensor): (N, H, W, C)
+        name (str): name of upsampling operations
+        size (tuple, optional): (height_multiplier, width_multiplier)
+            (default: (2, 2))
+    Returns:
+        output (4-D Tensor): (N, h_multiplier * H, w_multiplier * W, C)
+    """
+    if data_format == 'NCHW':
+        H, W = tensor.get_shape().as_list()[2:]
+    else:
+        H, W = tensor.get_shape().as_list()[1:]
+
+    H_multi, W_multi = size
+    target_H = H * H_multi
+    target_W = W * W_multi
+
+    if data_format == 'NCHW':
+        tensor = tf.transpose(tensor, perm=(0,2,3,1))
+        res = tf.image.resize_nearest_neighbor(tensor, (target_H, target_W), name="upsample_{}".format(name))
+        res = tf.transpose(res, perm=(0,3,2,1))
+    else:
+        res = tf.image.resize_nearest_neighbor(tensor, (target_H, target_W), name="upsample_{}".format(name))
+
+    return res
