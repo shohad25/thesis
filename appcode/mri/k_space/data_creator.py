@@ -67,9 +67,8 @@ class DataCreator:
                 image_3d = image_3d.transpose(trans)
 
             ## HACK - padding image:
-            pad = 128
+            pad = 256
             print "PADDING IMAGE TO FIX SIZE! 256-%d " % pad
-
             if image_3d.shape[1] > pad:
                 continue
             image_3d = pad_image_with_zeros_fixed(dat=image_3d, to_size=[256, pad])

@@ -31,3 +31,8 @@ python create_base_data_for_train.py --data_base_name=SchizReg --output_dir=/she
 rsync -raP /sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/* ohadsh@132.72.48.22:/home/ohadsh/work/data/SchizReg
 snx -s vpn1.bgu.ac.il -u ohas@vpn
 6013
+
+6. Freesurfer
+set FREESURFER_HOME = /media/ohadsh/sheard/Ohad/Downloads/freesurfe
+source FreeSurferEnv.csh
+run bin/freeview

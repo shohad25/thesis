@@ -37,10 +37,12 @@ FLAGS = flags.FLAGS
 
 flags.DEFINE_integer('max_steps', 5000000, 'Number of steps to run trainer.')
 flags.DEFINE_float('learning_rate', 0.00005, 'Initial learning rate.')
-flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
+# flags.DEFINE_float('regularization_weight', 5e-4, 'L2 Norm regularization weight.')
+flags.DEFINE_float('reg_w', 5e-4, 'L2 Norm regularization weight.')
+flags.DEFINE_float('reg_b', 5e-4, 'L2 Norm regularization weight.')
 # flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_size', 5, 'Size of mini batch')
-flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
+flags.DEFINE_integer('mini_batch_predict', 200, 'Size of mini batch for predict')
 flags.DEFINE_integer('max_predict', 5000, 'Number of steps to run trainer.')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
@@ -185,7 +187,9 @@ def train_model(mode, checkpoint=None):
     # Merge all the summaries and write them out to /tmp/mnist_logs
     merged = tf.summary.merge_all()
 
-    sess = tf.Session()
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
     init = tf.global_variables_initializer()
 
     writer = defaultdict(dict)
@@ -282,8 +286,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real = open(os.path.join(output_file, "000000.predict_real.bin"), 'w')
         f_out_imag = open(os.path.join(output_file, "000000.predict_imag.bin"), 'w')
-    if output_file_interp is not None:
-        f_interp = open(os.path.join(output_file_interp, "000000.interp.bin"), 'w')
 
     gen_loss_adversarial = 1.0
 
@@ -294,15 +296,13 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                              tt=tt, batch_size=FLAGS.mini_batch_size)
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
-                predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
+                predict, result = sess.run([net.predict_g, net.evaluation], feed_dict=feed)
 
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:
                     f_out_real.write(predict['real'].ravel())
                     f_out_imag.write(predict['imag'].ravel())
-                if output_file_interp is not None:
-                    f_interp.write(np.concatenate([x_interp['real'], x_interp['imag']], axis=3).ravel())
             else:
                 break
             predict_counter += FLAGS.mini_batch_size
@@ -313,8 +313,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real.close()
         f_out_imag.close()
-    if output_file_interp is not None:
-        f_interp.close()
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
 

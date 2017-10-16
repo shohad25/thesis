@@ -10,6 +10,16 @@ MSE-ZERO = 138.766846
 PSNR-MEAN-ZERO = 26.741942 [dB]
 PSNR-STD-ZERO = 2.339061 [dB]
 
+UPDATED 5000:
+MSE-ZERO = 139.545670
+PSNR-MEAN-ZERO = 26.717635 [dB]
+PSNR-STD-ZERO = 2.151053 [dB]
+
+UPDATED 2500:
+MSE-ZERO = 140.638275
+PSNR-MEAN-ZERO = 26.683764 [dB]
+PSNR-STD-ZERO = 2.142759 [dB]
+
 CS-MRI:
 MEAN = 34.582979698942225 (2458 samples)
 STD = 2.6636461380601357
@@ -68,10 +78,19 @@ STD = 2.6636461380601357
 		PSNR-MEAN-PROPOSED = 34.310021 [dB]
 		PSNR-STD-PROPOSED = 2.861602 [dB]
 
+	****BEST OCTOBER 2016********
 	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/model.ckpt-3340000
 		MSE-PROPOSED = 22.770859
 		PSNR-MEAN-PROPOSED = 34.591005 [dB]
 		PSNR-STD-PROPOSED = 2.939233 [dB]
+		Upadted 2500:
+		MSE-PROPOSED = 22.602526
+		PSNR-MEAN-PROPOSED = 34.623229 [dB]
+		PSNR-STD-PROPOSED = 2.555809 [dB]
+		Updated 5000:
+		MSE-PROPOSED = 22.677235
+		PSNR-MEAN-PROPOSED = 34.608898 [dB]
+		PSNR-STD-PROPOSED = 2.574584 [dB]
 
 
 
@@ -113,6 +132,31 @@ STD = 2.6636461380601357
 		MSE-PROPOSED = 26.190184
 		PSNR-MEAN-PROPOSED = 33.983414 [dB]
 		PSNR-STD-PROPOSED = 2.649267 [dB]
+
+
+-------- NORMAL DISTRIBUTION TO GENERATOR INSTEAD OF UNIFORM ------
+5.  random_mask_factor4_D1_normal_noise
+ 	d upadtes 1
+ 	L2 weight = 1
+ 	use normal distribtuion in generator input with mean=0, std=0.1
+ 	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_normal_noise/model.ckpt-1650000
+	MSE-PROPOSED = 38.487789
+	PSNR-MEAN-PROPOSED = 32.311570 [dB]
+	PSNR-STD-PROPOSED = 2.003987 [dB]
+	2500:
+	MSE-PROPOSED = 38.456776
+	PSNR-MEAN-PROPOSED = 32.315071 [dB]
+	PSNR-STD-PROPOSED = 2.004245 [dB]
+
+6. UNET - 
+ 	d upadtes 1
+ 	L2 weight = 1
+ 	use normal distribtuion in generator input with mean=0, std=0.1
+ 	snapshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_unet//IXI/random_mask_factor4_D1_normal_noise/model.ckpt-980000
+	results 2500:
+	MSE-PROPOSED = 32.810162
+	PSNR-MEAN-PROPOSED = 33.004716 [dB]
+	PSNR-STD-PROPOSED = 2.215404 [dB]
 
 
 

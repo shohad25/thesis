@@ -12,7 +12,6 @@ import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
 from appcode.mri.dl.gan.k_space_wgan import KSpaceSuperResolutionWGAN
-#from appcode.mri.dl.gan.k_space_wgan_deep import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -25,8 +24,10 @@ import inspect
 import random
 import time
 
-# k space data set on loca SSD
+# k space data set on local SSD
 base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
+# print("USE NEW DATA BASE ON LOCAL DISK")
+# base_dir = '/media/ohadsh/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_centered/shuffle/'
 # print("working on 140 lines images")
 # base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
 # file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
@@ -187,7 +188,9 @@ def train_model(mode, checkpoint=None):
     # Merge all the summaries and write them out to /tmp/mnist_logs
     merged = tf.summary.merge_all()
 
-    sess = tf.Session()
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
     init = tf.global_variables_initializer()
 
     writer = defaultdict(dict)
@@ -284,8 +287,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real = open(os.path.join(output_file, "000000.predict_real.bin"), 'w')
         f_out_imag = open(os.path.join(output_file, "000000.predict_imag.bin"), 'w')
-    if output_file_interp is not None:
-        f_interp = open(os.path.join(output_file_interp, "000000.interp.bin"), 'w')
 
     gen_loss_adversarial = 1.0
 
@@ -296,15 +297,13 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                              tt=tt, batch_size=FLAGS.mini_batch_size)
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
-                predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
+                predict, result = sess.run([net.predict_g, net.evaluation], feed_dict=feed)
 
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:
                     f_out_real.write(predict['real'].ravel())
                     f_out_imag.write(predict['imag'].ravel())
-                if output_file_interp is not None:
-                    f_interp.write(np.concatenate([x_interp['real'], x_interp['imag']], axis=3).ravel())
             else:
                 break
             predict_counter += FLAGS.mini_batch_size
@@ -315,8 +314,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real.close()
         f_out_imag.close()
-    if output_file_interp is not None:
-        f_interp.close()
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
 
