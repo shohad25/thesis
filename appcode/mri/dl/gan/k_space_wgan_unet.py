@@ -203,6 +203,10 @@ class KSpaceSuperResolutionWGAN(BasicModel):
                                      name='G_predict_real')
         predict['imag'] = tf.reshape(conv_last[:, 1, :, :], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]],
                                      name='G_predict_imag')
+        # Dump prediction out
+        if self.FLAGS.dump_debug:
+            tf.summary.image('G_last_conv_real', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
+            tf.summary.image('G_last_conv_imag', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
 
         # Masking
         predict['real'] = tf.multiply(predict['real'], mask_not)
@@ -220,9 +224,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Dump prediction out
         if self.FLAGS.dump_debug:
-            tf.summary.image('G_last_conv_real', tf.transpose(tf.expand_dims(conv_last[:, 0, :, :]), (0, 2, 3, 1)), collections='G')
-            tf.summary.image('G_last_conv_imag', tf.transpose(tf.expand_dims(conv_last[:, 1, :, :]), (0, 2, 3, 1)), collections='G')
-
             tf.summary.image('G_predict_real', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
             tf.summary.image('G_predict_imag', tf.transpose(predict['imag'], (0, 2, 3, 1)), collections='G')
 
