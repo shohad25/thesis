@@ -220,6 +220,9 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Dump prediction out
         if self.FLAGS.dump_debug:
+            tf.summary.image('G_last_conv_real', tf.transpose(conv_last[:, 0, :, :], (0, 2, 3, 1)), collections='G')
+            tf.summary.image('G_last_conv_imag', tf.transpose(conv_last[:, 1, :, :], (0, 2, 3, 1)), collections='G')
+
             tf.summary.image('G_predict_real', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
             tf.summary.image('G_predict_imag', tf.transpose(predict['imag'], (0, 2, 3, 1)), collections='G')
 
@@ -283,7 +286,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.conv_3_bn_d = ops.batch_norm(self.pool_3_d, self.train_phase, decay=0.98, name="D_bn3")
         # self.relu_3_d = tf.nn.relu(self.conv_3_bn_d)
         self.relu_3_d = ops.lrelu(self.conv_3_bn_d)
-
 
         out_dim = 48  # 64x64
         self.redu_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1,
