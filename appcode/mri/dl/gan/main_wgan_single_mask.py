@@ -246,8 +246,6 @@ def train_model(mode, checkpoint=None):
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
-                grad_d, grad_g = sess.run([net.grad_d, net.grad_g], feed_dict=feed)
-                print("grad_D=%f, grad_G=%f" % (grad_d, grad_g))
                 run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
 
             # import pdb

@@ -345,9 +345,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         grad_d = optimizer_d.compute_gradients(loss=self.d_loss, var_list=self.d_vars)
         grad_g = optimizer_g.compute_gradients(loss=self.g_loss, var_list=self.g_vars)
 
-        self.grad_d = tf.reduce_sum([tf.reduce_sum(tf.abs(item)) for item in grad_d])
-        self.grad_g = tf.reduce_sum([tf.reduce_sum(tf.abs(item)) for item in grad_g])
-
         self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         # Ensures that we execute the update_ops before performing the train_step
