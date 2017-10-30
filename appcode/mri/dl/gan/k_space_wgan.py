@@ -104,12 +104,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         noise_real = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_real')
         noise_imag = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_imag')
 
-        # mean_g = 0.0
-        # std_g = 0.1
-        # print "Normal Noise level: mean=%f, std=%f" % (mean_g, std_g)
-        # noise_real = mask_not * tf.random_normal(shape=tf.shape(x_real), mean=mean_g, stddev=std_g, dtype=tf.float32, seed=None, name='z_real')
-        # noise_imag = mask_not * tf.random_normal(shape=tf.shape(x_real), mean=mean_g, stddev=std_g, dtype=tf.float32, seed=None, name='z_imag')
-
         x_real += noise_real
         x_imag += noise_imag
 
@@ -270,7 +264,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         with tf.variable_scope("discriminator") as scope:
             self.d_loss_real = tf.reduce_mean(self.predict_d_logits)
             tf.summary.scalar('d_loss_real', self.d_loss_real, collections='D')
-            scope.reuse_variables()
+            #scope.reuse_variables()
             self.d_loss_fake = tf.reduce_mean(self.predict_d_logits_for_g)
             tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
@@ -350,6 +344,9 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # (and also increment the global step counter) as a single training step.
         grad_d = optimizer_d.compute_gradients(loss=self.d_loss, var_list=self.d_vars)
         grad_g = optimizer_g.compute_gradients(loss=self.g_loss, var_list=self.g_vars)
+
+        self.grad_d = tf.reduce_sum([tf.reduce_sum(tf.abs(item)) for item in grad_d])
+        self.grad_g = tf.reduce_sum([tf.reduce_sum(tf.abs(item)) for item in grad_g])
 
         self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 

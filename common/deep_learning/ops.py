@@ -76,8 +76,7 @@ def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="con
             return deconv
 
 
-def lrelu(x, name="lrelu"):
-    leak = 0.2
+def lrelu(x, leak=0.2, name="lrelu"):
     with tf.variable_scope(name):
         f1 = 0.5 * (1 + leak)
         f2 = 0.5 * (1 - leak)
@@ -136,7 +135,7 @@ def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
     """
     with tf.variable_scope(name) as scope:
         axis = 1 if data_format == 'NCHW' else -1
-        return tf.layers.batch_normalization(in_tensor, training=phase_train, momentum=decay, scale=scope, axis=axis, fused=True)
+        return tf.layers.batch_normalization(in_tensor, training=phase_train, momentum=decay, axis=axis, fused=True)
 
 
 def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW', name="conv2d"):
@@ -200,6 +199,38 @@ def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.n
     data_format_type = 'channels_first' if data_format == 'NCHW' else 'channels last'
     with tf.variable_scope(name):
         for i, F in enumerate(n_filters):
+            net = conv2d(input_=net, output_dim=F, k_h=3, k_w=3, d_h=1, d_w=1, in_channels=None,
+                         data_format='NCHW', name="conv_{}".format(i + 1), hist=False)
+            net = batch_norm(in_tensor=net, phase_train=training, name="bn_{}".format(i + 1), decay=0.98, data_format='NCHW')
+            net = activation(net, name="relu{}_{}".format(name, i + 1))
+
+        if pool is False:
+            return net
+
+        pool = tf.layers.max_pooling2d(net, (2, 2), data_format=data_format_type, strides=(2, 2), name="pool_{}".format(name))
+        return net, pool
+
+
+def conv_conv_pool_old(input_, n_filters, training, name, pool=True, activation=tf.nn.relu, data_format='NCHW'):
+    """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
+    {Conv -> BN -> RELU}x2 -> {Pool, optional}
+    Args:
+        input_ (4-D Tensor): (batch_size, H, W, C)
+        n_filters (list): number of filters [int, int]
+        training (1-D Tensor): Boolean Tensor
+        name (str): name postfix
+        pool (bool): If True, MaxPool2D
+        activation: Activaion functions
+    Returns:
+        net: output of the Convolution operations
+        pool (optional): output of the max pooling operations
+    """
+    net = input_
+
+    # with tf.variable_scope("layer{}".format(name)):
+    data_format_type = 'channels_first' if data_format == 'NCHW' else 'channels last'
+    with tf.variable_scope(name):
+        for i, F in enumerate(n_filters):
 
             net = tf.layers.conv2d(net, F, (3, 3), activation=None, padding='same', name="conv_{}".format(i + 1),
                                    data_format=data_format_type)
@@ -212,7 +243,6 @@ def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.n
 
         pool = tf.layers.max_pooling2d(net, (2, 2), data_format=data_format_type, strides=(2, 2), name="pool_{}".format(name))
         return net, pool
-
 
 def upsample_concat(inputA, input_B, name, data_format='NCHW'):
     """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
