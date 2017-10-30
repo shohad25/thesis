@@ -76,7 +76,8 @@ def conv2d_transpose(input_, output_shape, k_h=5, k_w=5, d_h=2, d_w=2, name="con
             return deconv
 
 
-def lrelu(x, leak=0.2, name="lrelu"):
+def lrelu(x, name="lrelu"):
+    leak = 0.2
     with tf.variable_scope(name):
         f1 = 0.5 * (1 + leak)
         f2 = 0.5 * (1 - leak)
