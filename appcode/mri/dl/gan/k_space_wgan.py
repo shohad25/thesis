@@ -274,6 +274,10 @@ class KSpaceSuperResolutionWGAN(BasicModel):
             self.d_loss_fake = tf.reduce_mean(self.predict_d_logits_for_g)
             tf.summary.scalar('d_loss_fake', self.d_loss_fake, collections='D')
 
+            if self.FLAGS.dump_debug:
+                tf.summary.image('D_predict_real', tf.transpose(tf.reshape(self.predict_d_logits,(-1,1,1,1)), (0, 2, 3, 1)), collections='D')
+                tf.summary.image('D_predict_fake', tf.transpose(tf.reshape(self.predict_d_logits_for_g, (-1,1,1,1)), (0, 2, 3, 1)), collections='D')
+
         self.d_loss = self.d_loss_fake - self.d_loss_real
         tf.summary.scalar('d_loss', self.d_loss, collections='D')
 

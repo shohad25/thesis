@@ -208,16 +208,13 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    gen_loss_adversarial = 0.0
+    gen_loss_adversarial = FLAGS.gen_loss_adversarial
     # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
     print("Starting at iteration number: %d " % start_iter)
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
-
-        if i % FLAGS.iters_no_adv == 0:
-            gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
@@ -230,17 +227,22 @@ def train_model(mode, checkpoint=None):
 
         else:
             # Training
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                # Update D network
-                for it in np.arange(FLAGS.num_D_updates):
+            # Update D network
+            for it in np.arange(FLAGS.num_D_updates):
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='train', batch_size=FLAGS.mini_batch_size)
+                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
                     _ = sess.run([net.clip_weights])
 
-                # Update G network
+            # Update G network
+            feed = feed_data(data_set, net.labels, net.train_phase,
+                             tt='train', batch_size=FLAGS.mini_batch_size)
+            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:

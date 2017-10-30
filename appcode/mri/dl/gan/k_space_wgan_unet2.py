@@ -254,23 +254,23 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Model convolutions
         out_dim = 8    # 256x256 => 128x128
-        conv1, pool1 = ops.conv_conv_pool(input_to_discriminator, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
+        conv1, pool1 = ops.conv_conv_pool(input_to_discriminator, n_filters=[out_dim, out_dim], activation=ops.lrelu,
                                           training=self.train_phase, name='D_block_1')
 
         out_dim = 16   # 128x128 => 64x64
-        conv2, pool2 = ops.conv_conv_pool(pool1, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
+        conv2, pool2 = ops.conv_conv_pool(pool1, n_filters=[out_dim, out_dim], activation=ops.lrelu,
                                           training=self.train_phase, name='D_block_2')
 
         out_dim = 32   # 64x128 => 32x32
-        conv3, pool3 = ops.conv_conv_pool(pool2, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
+        conv3, pool3 = ops.conv_conv_pool(pool2, n_filters=[out_dim, out_dim], activation=ops.lrelu,
                                           training=self.train_phase, name='D_block_3')
 
         out_dim = 64   # 32x32 => 16x16
-        conv4, pool4 = ops.conv_conv_pool(pool3, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
+        conv4, pool4 = ops.conv_conv_pool(pool3, n_filters=[out_dim, out_dim], activation=ops.lrelu,
                                           training=self.train_phase, name='D_block_4')
 
         out_dim = 128  # 16x16
-        conv5 = ops.conv_conv_pool(pool4, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
+        conv5 = ops.conv_conv_pool(pool4, n_filters=[out_dim, out_dim], activation=ops.lrelu,
                                    training=self.train_phase, name='D_block_5', pool=False)
 
         out_dim = 1
