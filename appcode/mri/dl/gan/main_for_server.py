@@ -12,8 +12,7 @@ import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.k_space_wgan import KSpaceSuperResolutionWGAN
-# from appcode.mri.dl.gan.k_space_wgan_fft import KSpaceSuperResolutionWGAN
+from appcode.mri.dl.gan.k_space_wgan_unet import KSpaceSuperResolutionWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -27,7 +26,7 @@ import random
 import time
 
 # k space data set on loca SSD
-os.environ['CUDA_VISIBLE_DEVICES'] = "1" 
+os.environ['CUDA_VISIBLE_DEVICES'] = "3" 
 base_dir = '/home/ohadsh/work/data/T1/sagittal/' 
 file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
@@ -41,7 +40,7 @@ flags.DEFINE_float('reg_w', 5e-4, 'L2 Norm regularization weight.')
 flags.DEFINE_float('reg_b', 5e-4, 'L2 Norm regularization weight.')
 # flags.DEFINE_integer('mini_batch_size', 10, 'Size of mini batch')
 flags.DEFINE_integer('mini_batch_size', 5, 'Size of mini batch')
-flags.DEFINE_integer('mini_batch_predict', 50, 'Size of mini batch for predict')
+flags.DEFINE_integer('mini_batch_predict', 200, 'Size of mini batch for predict')
 flags.DEFINE_integer('max_predict', 5000, 'Number of steps to run trainer.')
 
 flags.DEFINE_float('gen_loss_context', 1.0, 'Generative loss, context weight.')
@@ -73,8 +72,8 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-#mask_single = get_rv_mask(mask_main_dir='/home/ohadsh/work/thesis/common/masks/', factor=FLAGS.random_sampling_factor)
-mask_single = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.1, seed=0)
+mask_single = get_rv_mask(mask_main_dir='/home/ohadsh/work/thesis/common/masks/', factor=FLAGS.random_sampling_factor)
+#mask_single = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.1, seed=0)
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     """
@@ -186,7 +185,9 @@ def train_model(mode, checkpoint=None):
     # Merge all the summaries and write them out to /tmp/mnist_logs
     merged = tf.summary.merge_all()
 
-    sess = tf.Session()
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
     init = tf.global_variables_initializer()
 
     writer = defaultdict(dict)
@@ -206,16 +207,13 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    gen_loss_adversarial = 0.0
+    gen_loss_adversarial = FLAGS.gen_loss_adversarial
     # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
     print("Starting at iteration number: %d " % start_iter)
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
-
-        if i % FLAGS.iters_no_adv == 0:
-            gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
@@ -228,17 +226,22 @@ def train_model(mode, checkpoint=None):
 
         else:
             # Training
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                # Update D network
-                for it in np.arange(FLAGS.num_D_updates):
+            # Update D network
+            for it in np.arange(FLAGS.num_D_updates):
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='train', batch_size=FLAGS.mini_batch_size)
+                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
                     _ = sess.run([net.clip_weights])
 
-                # Update G network
+            # Update G network
+            feed = feed_data(data_set, net.labels, net.train_phase,
+                             tt='train', batch_size=FLAGS.mini_batch_size)
+            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
@@ -283,8 +286,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real = open(os.path.join(output_file, "000000.predict_real.bin"), 'w')
         f_out_imag = open(os.path.join(output_file, "000000.predict_imag.bin"), 'w')
-    if output_file_interp is not None:
-        f_interp = open(os.path.join(output_file_interp, "000000.interp.bin"), 'w')
 
     gen_loss_adversarial = 1.0
 
@@ -295,27 +296,23 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                              tt=tt, batch_size=FLAGS.mini_batch_size)
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
-                predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
+                predict, result = sess.run([net.predict_g, net.evaluation], feed_dict=feed)
 
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:
                     f_out_real.write(predict['real'].ravel())
                     f_out_imag.write(predict['imag'].ravel())
-                if output_file_interp is not None:
-                    f_interp.write(np.concatenate([x_interp['real'], x_interp['imag']], axis=3).ravel())
-
-            predict_counter += FLAGS.mini_batch_predict
+            else:
+                break
+            predict_counter += FLAGS.mini_batch_size
             print("Done - " + str(predict_counter))
             if predict_counter >= FLAGS.max_predict:
                 break
 
-
     if output_file is not None:
         f_out_real.close()
         f_out_imag.close()
-    if output_file_interp is not None:
-        f_interp.close()
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
 
