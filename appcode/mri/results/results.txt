@@ -94,6 +94,7 @@ STD = 2.6636461380601357
 
 
 
+
 3.	random_mask_factor4_D1_bias_zero
 	discriminator updates = 1
 	bias decay = 0.0
@@ -133,6 +134,23 @@ STD = 2.6636461380601357
 		PSNR-MEAN-PROPOSED = 33.983414 [dB]
 		PSNR-STD-PROPOSED = 2.649267 [dB]
 
+	### BEST OF UNET ## - still graphs looks bad
+5. random_mask_factor4_D1_high_lr_betterD
+	discriminator updates = 1
+	snapshot - /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_unet/IXI/random_mask_factor4_D1_high_lr_betterD/model.ckpt-790000
+	2500:
+	MSE-PROPOSED = 21.718950
+	PSNR-MEAN-PROPOSED = 34.796411 [dB]
+	PSNR-STD-PROPOSED = 2.374307 [dB]	
+
+6. random_mask_factor4_D1_unet2
+   better discriminator: as the generator encoder
+   2500:
+   snapshot - /newdisk/ohadsh/work/runs/Wgan/random_mask_rv_unet/IXI/random_mask_factor4_D1_unet2/model.ckpt-190000
+	MSE-PROPOSED = 26.167118
+	PSNR-MEAN-PROPOSED = 33.987240 [dB]
+	PSNR-STD-PROPOSED = 2.414598 [dB]
+
 
 -------- NORMAL DISTRIBUTION TO GENERATOR INSTEAD OF UNIFORM ------
 5.  random_mask_factor4_D1_normal_noise
@@ -158,7 +176,20 @@ STD = 2.6636461380601357
 	PSNR-MEAN-PROPOSED = 33.004716 [dB]
 	PSNR-STD-PROPOSED = 2.215404 [dB]
 
-
+7. Centered
+	TRAINED ON ONLY CENTRED DATA
+ 	d upadtes 1
+ 	L2 weight = 1
+ 	use normal distribtuion in generator input with mean=0, std=0.1
+	snspshot - /media/ohadsh/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1_normal_noise_centered/model.ckpt-90000
+	On all data 2500:
+	MSE-PROPOSED = 45.184822
+	PSNR-MEAN-PROPOSED = 31.614873 [dB]
+	PSNR-STD-PROPOSED = 1.990919 [dB]
+	On centered data 2500:
+	MSE-PROPOSED = 45.187130
+	PSNR-MEAN-PROPOSED = 31.614652 [dB]
+	PSNR-STD-PROPOSED = 1.990184 [dB]
 
 ################################################## Random mask Factor 6 ##########################################
 Results 5000 examples:
