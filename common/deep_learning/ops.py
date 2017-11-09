@@ -105,7 +105,7 @@ def linear(input_, output_size, scope=None, bias_start=0.0, with_w=False, hist=F
             return tf.matmul(input_, matrix) + bias
 
 
-def batch_norm_old(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
+def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
@@ -123,7 +123,7 @@ def batch_norm_old(in_tensor, phase_train, name, decay=0.99, data_format='NCHW')
                                             data_format=data_format)
 
 
-def batch_norm(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
+def batch_norm_new(in_tensor, phase_train, name, decay=0.99, data_format='NCHW'):
     """
     Batch normalization on convolutional maps.
     Ref.: http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
