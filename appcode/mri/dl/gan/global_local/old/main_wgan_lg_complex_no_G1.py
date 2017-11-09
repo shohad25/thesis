@@ -7,29 +7,26 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.k_space_wgan_unet3 import KSpaceSuperResolutionWGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
-import random
-import time
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.global_local.old.k_space_wgan_lg_complex_no_G1 import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
 base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
 # print("working on 140 lines images")
 # base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
 # file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
-file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt', 'g_r': 'k_space_real_G1', 'g_i': 'k_space_imag_G1'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -96,17 +93,19 @@ def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     real = next_batch[file_names['y_r']]
     imag = next_batch[file_names['y_i']]
 
-    if len(real) == 0 or len(imag) == 0:
-        return None
+    real_g = next_batch[file_names['g_r']]
+    imag_g = next_batch[file_names['g_i']]
 
-    # start_line = int(10*random.random() - 5)
-    # mask_single = get_random_mask(w=DIMS_OUT[2], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+    if len(real) == 0 or len(imag) == 0 or len(real_g) == 0 or len(imag_g) == 0:
+        return None
 
     feed = {y_input['real']: real[:,:,:,np.newaxis].transpose(0,3,1,2),
             y_input['imag']: imag[:,:,:,np.newaxis].transpose(0,3,1,2),
-            y_input['mask']: mask_single[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
+            y_input['real_g']: real_g[:, :, :, np.newaxis].transpose(0, 3, 2, 1),
+            y_input['imag_g']: imag_g[:, :, :, np.newaxis].transpose(0, 3, 2, 1),
             train_phase: t_phase
            }
+
     return feed
 
 
@@ -154,11 +153,16 @@ def load_graph():
     # Init inputs as placeholders
     y_input = {'real': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='y_input_real'),
                'imag': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='y_input_imag'),
-               'mask': tf.placeholder(tf.float32, shape=[1, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='mask')}
+               'real_g': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]],
+                                      name='y_input_real_generator'),
+               'imag_g': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]],
+                                      name='y_input_imag_generator'),
+               }
 
     tf.add_to_collection("placeholders", y_input['real'])
     tf.add_to_collection("placeholders", y_input['imag'])
-    tf.add_to_collection("placeholders", y_input['mask'])
+    tf.add_to_collection("placeholders", y_input['real_g'])
+    tf.add_to_collection("placeholders", y_input['imag_g'])
 
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
@@ -208,13 +212,16 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    gen_loss_adversarial = FLAGS.gen_loss_adversarial
+    gen_loss_adversarial = 0.0
     # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
     print("Starting at iteration number: %d " % start_iter)
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
+
+        if i % FLAGS.iters_no_adv == 0:
+            gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
@@ -227,22 +234,17 @@ def train_model(mode, checkpoint=None):
 
         else:
             # Training
-            # Update D network
-            for it in np.arange(FLAGS.num_D_updates):
-                feed = feed_data(data_set, net.labels, net.train_phase,
-                                 tt='train', batch_size=FLAGS.mini_batch_size)
-                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                    feed[net.adv_loss_w] = gen_loss_adversarial
-
-                    _, d_loss_fake, d_loss_real, d_loss = \
-                        sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    _ = sess.run([net.clip_weights])
-
-            # Update G network
             feed = feed_data(data_set, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
             if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
                 feed[net.adv_loss_w] = gen_loss_adversarial
+                # Update D network
+                for it in np.arange(FLAGS.num_D_updates):
+                    _, d_loss_fake, d_loss_real, d_loss = \
+                        sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
+                    _ = sess.run([net.clip_weights])
+
+                # Update G network
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
@@ -322,9 +324,7 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         # Copy scripts to training dir
         shutil.copy(os.path.abspath(__file__), args.train_dir)
-        model_file = inspect.getfile(KSpaceSuperResolutionWGAN)
-        model_file = model_file.split('.py')[0]+'.py'
-        shutil.copy(model_file, args.train_dir)
+        shutil.copy(inspect.getfile(KSpaceSuperResolutionWGAN), args.train_dir)
         train_model(args.mode, args.checkpoint)
     elif args.mode == 'evaluate':
         evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint, output_file=args.output_file, output_file_interp=args.output_file_interp)

@@ -4,7 +4,7 @@ from common.deep_learning.basic_model import BasicModel
 import common.deep_learning.ops as ops
 
 
-class KSpaceSuperResolutionWGAN(BasicModel):
+class KSpaceSuperResolutionGLWGAN(BasicModel):
     """
     Represents k-space super resolution model
     """
@@ -26,6 +26,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.FLAGS = FLAGS
         self.train_phase = train_phase
         self.predict_g = None
+        self.predict_g2 = None
         self.adv_loss_w = adv_loss_w
 
         self.predict_d = None
@@ -33,6 +34,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         self.predict_d_for_g = None
         self.predict_d_logits_for_g = None
+        self.reconstructed_image_reference = None
 
         self.train_op_g = None
         self.train_op_d = None
@@ -61,20 +63,22 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         """
         with tf.name_scope('G_'):
             self.predict_g = self.__G__()
+            self.predict_g2 = self.__G2__()
 
         with tf.name_scope('D_'):
-            self.predict, self.predict_logits = self.__D__([self.input_d, self.predict_g], input_type="Real")
+
+            # Create reference examples
+            # Input d holds real&imaginary values. The discriminative decision based on reconstructed image
+            self.reconstructed_image_reference = self.get_reconstructed_image(real=self.input_d['real'],
+                                                                              imag=self.input_d['imag'], name='Both_gt')
+
+            predict_g2_stacked = tf.stack([self.predict_g2['real'][:,0,:,:], self.predict_g2['imag'][:,0,:,:]], axis=1)
+
+            self.predict, self.predict_logits = self.__D__([self.reconstructed_image_reference, predict_g2_stacked])
 
             self.predict_d, self.predict_d_for_g = tf.split(value=self.predict, num_or_size_splits=2, axis=0)
-            self.predict_d_logits, self.predict_d_logits_for_g = tf.split(value=self.predict_logits, num_or_size_splits=2, axis=0)
-
-            # self.predict_d, self.predict_d_logits
-            # with tf.variable_scope(tf.get_variable_scope(), reuse=True):
-            #     self.predict_d_for_g, self.predict_d_logits_for_g = self.__D__(self.predict_g, input_type="Gen")
-
-            if len(self.regularization_values_d) > 0:
-                self.regularization_sum_d = sum(self.regularization_values_d)
-
+            self.predict_d_logits, self.predict_d_logits_for_g = tf.split(value=self.predict_logits,
+                                                                          num_or_size_splits=2, axis=0)
             self.clip_weights = self.__clip_weights__()
 
         with tf.name_scope('loss'):
@@ -90,127 +94,107 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
     def __G__(self):
         """
-        Define the model
+        Only for debug, this model already trained an we used it's outputs
         """
-        mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
-
         # Create the inputs
-        x_real = self.input['real'] * self.input['mask']
-        x_imag = self.input['imag'] * self.input['mask']
-
-        print "Noise level: (-0.01,0.01)"
-        minval = -0.01
-        maxval = 0.01
-        noise_real = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_real')
-        noise_imag = mask_not * tf.random_uniform(shape=tf.shape(x_real), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='z_imag')
-
-        x_real += noise_real
-        x_imag += noise_imag
-
-        if self.FLAGS.dump_debug:
-            tf.summary.image('G_mask', tf.transpose(self.labels['mask'], (0, 2, 3, 1)), collections='G', max_outputs=1)
-            tf.summary.image('noise_real', tf.transpose(noise_real, (0, 2, 3, 1)), collections='G', max_outputs=1)
-            tf.summary.image('noise_image', tf.transpose(noise_imag, (0, 2, 3, 1)), collections='G', max_outputs=1)
-            tf.summary.image('x_real_noise', tf.transpose(x_real, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('x_image_noise', tf.transpose(x_imag, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('x_input_real', tf.transpose(self.input['real'], (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('x_input_image', tf.transpose(self.input['imag'], (0, 2, 3, 1)), collections='G', max_outputs=2)
-
-            image_with_noise_padding = self.get_reconstructed_image(real=x_real, imag=x_imag, name='NoisePadding')
-            image_with_zero_padding = self.get_reconstructed_image(real=self.input['real'] * self.input['mask'],
-                                                                    imag=self.input['imag'] * self.input['mask'], name='NoisePadding')
-            image_debug = self.get_reconstructed_image(real=self.input['real'],
-                                                                    imag=self.input['imag'], name='RegularDebug')
-            image_with_noise_padding = tf.expand_dims(input=tf.abs(tf.complex(real=image_with_noise_padding[:,0,:,:],
-                                                                              imag=image_with_noise_padding[:,1,:,:])), dim=1)
-            image_with_zero_padding = tf.expand_dims(input=tf.abs(tf.complex(real=image_with_zero_padding[:,0,:,:],
-                                                                             imag=image_with_zero_padding[:,1,:,:])), dim=1)
-            image_debug = tf.expand_dims(input=tf.abs(tf.complex(real=image_debug[:,0,:,:],
-                                                                              imag=image_debug[:,1,:,:])), dim=1)
-            tf.summary.image('image_noise_padding', tf.transpose(image_with_noise_padding, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('image_zero_padding', tf.transpose(image_with_zero_padding, (0, 2, 3, 1)), collections='G', max_outputs=2)
-            tf.summary.image('image_zero_padding', tf.transpose(image_debug, (0, 2, 3, 1)), collections='G', max_outputs=2)
-
-        self.x_input_upscale['real'] = x_real
-        self.x_input_upscale['imag'] = x_imag
-
-        # Model convolutions
-        # with tf.name_scope('real'):
-        out_dim = 16
-        x_input_stack = tf.stack([x_real[:,0,:,:], x_imag[:,0,:,:]], axis=1)
-        # self.conv_1, reg_1 = ops.conv2d(x_real, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
-
-        self.conv_1 = ops.conv2d(x_input_stack, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
-        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G_bn1")
-        self.relu_1 = tf.nn.relu(self.conv_1_bn)
-
-        out_dim = 32
-        self.conv_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
-        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G_bn2")
-        self.relu_2 = tf.nn.relu(self.conv_2_bn)
-
-        out_dim = 64
-        self.conv_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
-        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
-        self.relu_3 = tf.nn.relu(self.conv_3_bn)
-
-
-        out_dim = 32
-        self.conv_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
-        self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
-        self.relu_4 = tf.nn.relu(self.conv_4_bn)
-
-        out_dim = 8
-        self.conv_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
-        self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G_bn5")
-        self.relu_5 = tf.nn.relu(self.conv_5_bn)
-
-        out_dim = 2
-        self.conv_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_6")
+        x_real = self.input['real_g']
+        x_imag = self.input['imag_g']
 
         predict = {}
-        predict['real'] = tf.reshape(self.conv_6[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
-        predict['imag'] = tf.reshape(self.conv_6[:,1,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
-
-        # Masking
-        predict['real'] = tf.multiply(predict['real'], mask_not)
-        predict['imag'] = tf.multiply(predict['imag'], mask_not)
-
-        input_masked_real = tf.multiply(self.input['real'], self.labels['mask'], name='input_masked_real')
-        input_masked_imag = tf.multiply(self.input['imag'], self.labels['mask'], name='input_masked_imag')
-
         with tf.name_scope("final_predict"):
-            predict['real'] = tf.add(predict['real'], input_masked_real, name='real')
-            predict['imag'] = tf.add(predict['imag'], input_masked_imag, name='imag')
+            predict['real'] = x_real
+            predict['imag'] = x_imag
 
         tf.add_to_collection("predict", predict['real'])
         tf.add_to_collection("predict", predict['imag'])
 
         # Dump prediction out
         if self.FLAGS.dump_debug:
-            tf.summary.image('G_predict_real', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
-            tf.summary.image('G_predict_imag', tf.transpose(predict['imag'], (0, 2, 3, 1)), collections='G')
+            tf.summary.image('G_predict_real_g1', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G')
+            tf.summary.image('G_predict_imag_g1', tf.transpose(predict['imag'], (0, 2, 3, 1)), collections='G')
 
         return predict
 
-    def __D__(self, input_d, input_type):
+    def __G2__(self):
+        """
+        This network gets the generator's 1 output (estimated k-space) and
+        fine tune the reconstructed image results
+        """
+        # Input d holds real&imaginary values. The discriminative decision based on reconstructed image
+        reconstructed_image = self.get_reconstructed_image(real=self.predict_g['real'], imag=self.predict_g['imag'], name='Both')
+
+        reconstructed_image_to_show = tf.expand_dims(input=tf.complex(real=reconstructed_image[:, 0, :, :],
+                                                             imag=reconstructed_image[:, 1, :, :]), dim=1)
+        reconstructed_image_to_show = tf.abs(reconstructed_image_to_show)
+
+        tf.summary.image('G2_reconstructed_input' + 'Fake_from_G', tf.transpose(reconstructed_image_to_show, (0, 2, 3, 1)),
+                         collections='G2', max_outputs=4)
+
+        # Model convolutions
+        # with tf.name_scope('real'):
+        out_dim = 16
+        self.conv_1 = ops.conv2d(reconstructed_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G2_conv_1")
+        self.conv_1_bn = ops.batch_norm(self.conv_1, self.train_phase, decay=0.98, name="G2_bn1")
+        self.relu_1 = tf.nn.relu(self.conv_1_bn, name='G2_relu1')
+
+        out_dim = 32
+        self.conv_2 = ops.conv2d(self.relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G2_conv_2")
+        self.conv_2_bn = ops.batch_norm(self.conv_2, self.train_phase, decay=0.98, name="G2_bn2")
+        self.relu_2 = tf.nn.relu(self.conv_2_bn, name='G2_relu2')
+
+        out_dim = 64
+        self.conv_3 = ops.conv2d(self.relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G2_conv_3")
+        self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G2_bn3")
+        self.relu_3 = tf.nn.relu(self.conv_3_bn, name='G2_relu3')
+
+        out_dim = 32
+        self.conv_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G2_conv_4")
+        self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G2_bn4")
+        self.relu_4 = tf.nn.relu(self.conv_4_bn, name='G2_relu4')
+
+        out_dim = 8
+        self.conv_5 = ops.conv2d(self.relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G2_conv_5")
+        self.conv_5_bn = ops.batch_norm(self.conv_5, self.train_phase, decay=0.98, name="G2_bn5")
+        self.relu_5 = tf.nn.relu(self.conv_5_bn, name='G2_relu5')
+
+        out_dim = 2
+        self.conv_6 = ops.conv2d(self.relu_5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G2_conv_6")
+
+        predict = {}
+        predict['real'] = tf.reshape(self.conv_6[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G2_predict_real')
+        predict['imag'] = tf.reshape(self.conv_6[:,1,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G2_predict_imag')
+
+        # residual
+        with tf.name_scope("final_predict_2"):
+            predict['real'] = tf.add(predict['real'], tf.expand_dims(reconstructed_image[:, 0, :, :], axis=1), name='real')
+            predict['imag'] = tf.add(predict['imag'], tf.expand_dims(reconstructed_image[:, 1, :, :], axis=1), name='imag')
+
+        tf.add_to_collection("predict", predict['real'])
+        tf.add_to_collection("predict", predict['imag'])
+
+        # Dump prediction out
+        if self.FLAGS.dump_debug:
+            g2_image_to_show = tf.complex(real=predict['real'], imag=predict['imag'])
+            g2_image_to_show = tf.abs(g2_image_to_show)
+            tf.summary.image('G2_reconstructed_output' + 'Fake_from_G',
+                             tf.transpose(g2_image_to_show, (0, 2, 3, 1)),
+                             collections='G2', max_outputs=4)
+        return predict
+
+    def __D__(self, input_d):
         """
         Define the discriminator
         """
-        # Dump input image out
-        input_real = tf.concat(axis=0, values=[input_d[0]['real'], input_d[1]['real']])
-        input_imag = tf.concat(axis=0, values=[input_d[0]['imag'], input_d[1]['imag']])
-
         # Input d holds real&imaginary values. The discriminative decision based on reconstructed image
-        input_to_discriminator = self.get_reconstructed_image(real=input_real, imag=input_imag, name='Both')
+        input_to_discriminator = input_d
+        org = input_to_discriminator[0]
+        fake = input_to_discriminator[1]
 
-        org, fake = tf.split(input_to_discriminator, num_or_size_splits=2, axis=0)
-        
-        org = tf.reshape(tf.abs(tf.complex(real=tf.squeeze(org[:,0,:,:]), imag=tf.squeeze(org[:,1,:,:]))), shape=[-1, 1, self.dims_out[1], self.dims_out[2]])
-        fake = tf.reshape(tf.abs(tf.complex(real=tf.squeeze(fake[:,0,:,:]), imag=tf.squeeze(fake[:,1,:,:]))), shape=[-1, 1, self.dims_out[1], self.dims_out[2]])
-
-        tf.summary.image('D_x_input_reconstructed' + 'Original', tf.transpose(org, (0,2,3,1)), collections='D', max_outputs=4)
-        tf.summary.image('D_x_input_reconstructed' + 'Fake', tf.transpose(fake, (0,2,3,1)), collections='G', max_outputs=4)
+        rec_org = tf.abs(tf.expand_dims(input=tf.complex(real=org[:, 0, :, :], imag=org[:, 1, :, :]), dim=1))
+        rec_fake = tf.abs(tf.expand_dims(input=tf.complex(real=fake[:, 0, :, :], imag=fake[:, 1, :, :]), dim=1))
+        tf.summary.image('D_x_input_reconstructed' + 'Original', tf.transpose(rec_org, (0,2,3,1)), collections='D', max_outputs=4)
+        tf.summary.image('D_x_input_reconstructed' + 'Fake', tf.transpose(rec_fake, (0,2,3,1)), collections='G2', max_outputs=4)
+        input_to_discriminator = tf.concat(input_to_discriminator, axis=0)
 
         # Model convolutions
         out_dim = 8  # 128x128
@@ -219,7 +203,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
                                               data_format='channels_first',name="D_pool_1")
         self.conv_1_bn_d = ops.batch_norm(self.pool_1_d, self.train_phase, decay=0.98, name="D_bn1")
         # self.relu_1_d = tf.nn.relu(self.conv_1_bn_d)
-        self.relu_1_d = ops.lrelu(self.conv_1_bn_d)
+        self.relu_1_d = ops.lrelu(self.conv_1_bn_d, name="D_relu1")
 
         out_dim = 16  # 64x64
         self.conv_2_d = ops.conv2d(self.relu_1_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
@@ -228,7 +212,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
                                               data_format='channels_first',name="D_pool_2")
         self.conv_2_bn_d = ops.batch_norm(self.pool_2_d, self.train_phase, decay=0.98, name="D_bn2")
         # self.relu_2_d = tf.nn.relu(self.conv_2_bn_d)
-        self.relu_2_d = ops.lrelu(self.conv_2_bn_d)
+        self.relu_2_d = ops.lrelu(self.conv_2_bn_d, name="D_relu2")
 
         # out_dim = 32  # 32x32
         out_dim = 8  # 32x32
@@ -238,7 +222,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
                                               data_format='channels_first',name="D_pool_3")
         self.conv_3_bn_d = ops.batch_norm(self.pool_3_d, self.train_phase, decay=0.98, name="D_bn3")
         # self.relu_3_d = tf.nn.relu(self.conv_3_bn_d)
-        self.relu_3_d = ops.lrelu(self.conv_3_bn_d)
+        self.relu_3_d = ops.lrelu(self.conv_3_bn_d, name="D_relu3")
 
         # out_dim = 16  # 16x16
         # self.conv_4_d = ops.conv2d(self.relu_3_d, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1,
@@ -275,8 +259,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.d_loss = self.d_loss_fake - self.d_loss_real
         tf.summary.scalar('d_loss', self.d_loss, collections='D')
 
-        # if len(self.regularization_values_d) > 0:
-        # reg_loss_d = self.reg_w * tf.reduce_sum(self.regularization_values_d)
         self.reg_loss_d = self.get_weights_regularization(dump=self.FLAGS.dump_debug, collection='D')
         self.d_loss_no_reg = self.d_loss
         self.d_loss += self.reg_loss_d
@@ -288,31 +270,30 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # g_loss = tf.reduce_mean(ops.binary_cross_entropy(preds=self.predict_d_for_g, targets=tf.ones_like(self.predict_d_for_g)))
         g_loss = -tf.reduce_mean(self.predict_d_logits_for_g)
 
-        tf.summary.scalar('g_loss', g_loss, collections='G')
+        tf.summary.scalar('g_loss', g_loss, collections='G2')
 
         # Context loss L2
-        mask_not = tf.cast(tf.logical_not(tf.cast(self.labels['mask'], tf.bool)), tf.float32)
-        real_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['real'] - self.labels['real'], mask_not))
-        imag_diff = tf.contrib.layers.flatten(tf.multiply(self.predict_g['imag'] - self.labels['imag'], mask_not))
+        real_diff = tf.contrib.layers.flatten(self.predict_g2['real'] - self.labels['real'])
+        imag_diff = tf.contrib.layers.flatten(self.predict_g2['imag'] - self.labels['imag'])
         self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
         print("You are using L2 loss")
 
-        tf.summary.scalar('g_loss_context_only', self.context_loss, collections='G')
+        tf.summary.scalar('g_loss_context_only', self.context_loss, collections='G2')
 
         self.g_loss = self.adv_loss_w * g_loss + self.FLAGS.gen_loss_context * self.context_loss
         # self.g_loss = self.FLAGS.gen_loss_adversarial * g_loss + self.FLAGS.gen_loss_context * context_loss
-        tf.summary.scalar('g_loss_plus_context', self.g_loss, collections='G')
+        tf.summary.scalar('g_loss_plus_context', self.g_loss, collections='G2')
 
         # if len(self.regularization_values) > 0:
         # reg_loss_g = self.reg_w * tf.reduce_sum(self.regularization_values)
-        self.reg_loss_g = self.get_weights_regularization(dump=self.FLAGS.dump_debug, collection='G')
+        self.reg_loss_g = self.get_weights_regularization(dump=self.FLAGS.dump_debug, collection='G2')
         self.g_loss_no_reg = self.g_loss
         self.g_loss += self.reg_loss_g
         if self.FLAGS.dump_debug:
-            tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G')
+            tf.summary.scalar('g_loss_plus_context_plus_reg', self.g_loss, collections='G2')
             tf.summary.scalar('g_loss_reg_only', self.reg_loss_g, collections='D')
 
-        tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G')
+        tf.summary.scalar('diff-loss', tf.abs(self.d_loss - self.g_loss), collections='G2')
 
     def __clip_weights__(self):
         clip_ops = []
@@ -330,27 +311,27 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         """
         t_vars = tf.trainable_variables()
         self.d_vars = [var for var in t_vars if 'D_' in var.name]
-        self.g_vars = [var for var in t_vars if 'G_' in var.name]
+        self.g2_vars = [var for var in t_vars if 'G2_' in var.name]
 
         # Create RMSProb optimizer with the given learning rate.
         optimizer_d = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
-        optimizer_g = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
+        optimizer_g2 = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
 
         # Create a variable to track the global step.
         global_step_d = tf.Variable(0, name='global_step_d', trainable=False)
-        global_step_g = tf.Variable(0, name='global_step_g', trainable=False)
+        global_step_g2 = tf.Variable(0, name='global_step_g2', trainable=False)
 
         # Use the optimizer to apply the gradients that minimize the loss
         # (and also increment the global step counter) as a single training step.
         grad_d = optimizer_d.compute_gradients(loss=self.d_loss, var_list=self.d_vars)
-        grad_g = optimizer_g.compute_gradients(loss=self.g_loss, var_list=self.g_vars)
+        grad_g = optimizer_g2.compute_gradients(loss=self.g_loss, var_list=self.g2_vars)
 
         self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         # Ensures that we execute the update_ops before performing the train_step
         with tf.control_dependencies(self.update_ops):
             train_op_d = optimizer_d.apply_gradients(grad_d, global_step=global_step_d)
-            train_op_g = optimizer_g.apply_gradients(grad_g, global_step=global_step_g)
+            train_op_g = optimizer_g2.apply_gradients(grad_g, global_step=global_step_g2)
 
         return train_op_d, train_op_g
 

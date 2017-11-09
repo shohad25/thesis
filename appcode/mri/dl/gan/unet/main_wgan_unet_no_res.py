@@ -7,25 +7,25 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys
-
-sys.path.append('/home/ohadsh/work/thesis/')
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_rv_mask
-from appcode.mri.dl.gan.unet.k_space_wgan_unet import KSpaceSuperResolutionWGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.unet.k_space_wgan_unet_no_res import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
-os.environ['CUDA_VISIBLE_DEVICES'] = "3" 
-base_dir = '/home/ohadsh/work/data/T1/sagittal/' 
+base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
+# print("working on 140 lines images")
+# base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
+# file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
 flags = tf.app.flags
@@ -70,8 +70,8 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-mask_single = get_rv_mask(mask_main_dir='/home/ohadsh/work/thesis/common/masks/', factor=FLAGS.random_sampling_factor)
-#mask_single = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.1, seed=0)
+mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
+
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     """

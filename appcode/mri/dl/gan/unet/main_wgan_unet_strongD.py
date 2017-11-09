@@ -7,22 +7,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.k_space_gan_unet2 import KSpaceSuperResolutionGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
-import random
-import time
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.unet.k_space_wgan_unet_strongD import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
 base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
@@ -54,7 +51,7 @@ flags.DEFINE_integer('iters_no_adv', 1, 'Iters with adv_w=0')
 flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
-flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
+flags.DEFINE_integer('num_D_updates', 5, 'Discriminator update freq')
 flags.DEFINE_integer('random_sampling_factor', 6, 'Random mask sampling factor')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
@@ -162,7 +159,7 @@ def load_graph():
 
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
-    network = KSpaceSuperResolutionGAN(input=None, labels=y_input, dims_in=DIMS_IN,
+    network = KSpaceSuperResolutionWGAN(input=None, labels=y_input, dims_in=DIMS_IN,
                                       dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w)
     network.build()
     return network
@@ -208,16 +205,13 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    gen_loss_adversarial = 0.0
+    gen_loss_adversarial = FLAGS.gen_loss_adversarial
     # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
     print("Starting at iteration number: %d " % start_iter)
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
-
-        if i % FLAGS.iters_no_adv == 0:
-            gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
@@ -230,19 +224,22 @@ def train_model(mode, checkpoint=None):
 
         else:
             # Training
+            # Update D network
+            for it in np.arange(FLAGS.num_D_updates):
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='train', batch_size=FLAGS.mini_batch_size)
+                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+
+                    _, d_loss_fake, d_loss_real, d_loss = \
+                        sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
+                    _ = sess.run([net.clip_weights])
+
+            # Update G network
             feed = feed_data(data_set, net.labels, net.train_phase,
                              tt='train', batch_size=FLAGS.mini_batch_size)
             if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
                 feed[net.adv_loss_w] = gen_loss_adversarial
-
-                # Update D network
-                if k % FLAGS.num_gen_updates == 0:
-                    _, d_loss_fake, d_loss_real, d_loss = \
-                        sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    k = 1
-                else:
-                    k += 1
-                # Update G network
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
@@ -322,7 +319,7 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         # Copy scripts to training dir
         shutil.copy(os.path.abspath(__file__), args.train_dir)
-        model_file = inspect.getfile(KSpaceSuperResolutionGAN)
+        model_file = inspect.getfile(KSpaceSuperResolutionWGAN)
         model_file = model_file.split('.py')[0]+'.py'
         shutil.copy(model_file, args.train_dir)
         train_model(args.mode, args.checkpoint)
@@ -342,7 +339,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_file_interp', dest='output_file_interp', default=None, type=str, help='Output file for interpolation output')
     parser.add_argument('--print_train', dest='print_train', type=int, help='Print_Train')
     parser.add_argument('--print_test', dest='print_test', type=int, help='Print Test')
-    parser.add_argument('--num_gen_updates', dest='num_gen_updates', type=int, help='num_gen_updates')
+    parser.add_argument('--num_D_updates', dest='num_D_updates', type=int, help='num_D_updates')
     parser.add_argument('--gen_loss_adversarial', dest='gen_loss_adversarial', type=float, help='gen_loss_adversarial')
     parser.add_argument('--gen_loss_context', dest='gen_loss_context', type=float, help='gen_loss_context')
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')
