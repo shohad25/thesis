@@ -11,7 +11,7 @@ import tensorflow as tf
 import numpy as np
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
 from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.k_space_wgan_unet_strongD import KSpaceSuperResolutionWGAN
+from appcode.mri.dl.gan.global_local.k_space_wgan_gl_g2 import KSpaceSuperResolutionGLWGAN
 from common.deep_learning.helpers import *
 import copy
 import os
@@ -29,7 +29,7 @@ base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
 # print("working on 140 lines images")
 # base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
 # file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
-file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
+file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt', 'g_r': 'k_space_real_G1', 'g_i': 'k_space_imag_G1'}
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -96,17 +96,19 @@ def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     real = next_batch[file_names['y_r']]
     imag = next_batch[file_names['y_i']]
 
-    if len(real) == 0 or len(imag) == 0:
-        return None
+    real_g = next_batch[file_names['g_r']]
+    imag_g = next_batch[file_names['g_i']]
 
-    # start_line = int(10*random.random() - 5)
-    # mask_single = get_random_mask(w=DIMS_OUT[2], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
+    if len(real) == 0 or len(imag) == 0 or len(real_g) == 0 or len(imag_g) == 0:
+        return None
 
     feed = {y_input['real']: real[:,:,:,np.newaxis].transpose(0,3,1,2),
             y_input['imag']: imag[:,:,:,np.newaxis].transpose(0,3,1,2),
-            y_input['mask']: mask_single[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
+            y_input['real_g']: real_g[:, :, :, np.newaxis].transpose(0, 3, 2, 1),
+            y_input['imag_g']: imag_g[:, :, :, np.newaxis].transpose(0, 3, 2, 1),
             train_phase: t_phase
            }
+
     return feed
 
 
@@ -154,15 +156,20 @@ def load_graph():
     # Init inputs as placeholders
     y_input = {'real': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='y_input_real'),
                'imag': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='y_input_imag'),
-               'mask': tf.placeholder(tf.float32, shape=[1, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]], name='mask')}
+               'real_g': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]],
+                                      name='y_input_real_generator'),
+               'imag_g': tf.placeholder(tf.float32, shape=[None, DIMS_OUT[0], DIMS_OUT[1], DIMS_OUT[2]],
+                                      name='y_input_imag_generator'),
+               }
 
     tf.add_to_collection("placeholders", y_input['real'])
     tf.add_to_collection("placeholders", y_input['imag'])
-    tf.add_to_collection("placeholders", y_input['mask'])
+    tf.add_to_collection("placeholders", y_input['real_g'])
+    tf.add_to_collection("placeholders", y_input['imag_g'])
 
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
-    network = KSpaceSuperResolutionWGAN(input=None, labels=y_input, dims_in=DIMS_IN,
+    network = KSpaceSuperResolutionGLWGAN(input=None, labels=y_input, dims_in=DIMS_IN,
                                       dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w)
     network.build()
     return network
@@ -297,7 +304,7 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                              tt=tt, batch_size=FLAGS.mini_batch_size)
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
-                predict, result = sess.run([net.predict_g, net.evaluation], feed_dict=feed)
+                predict, result = sess.run([net.predict_g2, net.evaluation], feed_dict=feed)
 
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
@@ -322,7 +329,7 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         # Copy scripts to training dir
         shutil.copy(os.path.abspath(__file__), args.train_dir)
-        model_file = inspect.getfile(KSpaceSuperResolutionWGAN)
+        model_file = inspect.getfile(KSpaceSuperResolutionGLWGAN)
         model_file = model_file.split('.py')[0]+'.py'
         shutil.copy(model_file, args.train_dir)
         train_model(args.mode, args.checkpoint)

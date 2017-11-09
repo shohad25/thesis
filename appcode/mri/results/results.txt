@@ -191,6 +191,33 @@ STD = 2.6636461380601357
 	PSNR-MEAN-PROPOSED = 31.614652 [dB]
 	PSNR-STD-PROPOSED = 1.990184 [dB]
 
+
+
+
+--------------------------------------- ######### Results from random_mask_rv_Nov17 after many bug fixes ######### -----------------------
+
+1. random_mask_factor4_D1
+	discriminator updates = 1
+	snapshot - 
+	******************BEST NOV 2017******************
+	2500:
+	MSE-PROPOSED = 21.170401
+	PSNR-MEAN-PROPOSED = 34.907508 [dB]
+	PSNR-STD-PROPOSED = 2.447093 [dB]
+
+
+
+2. random_mask_factor4_D1_clip005
+	discriminator updates = 1
+	clip w = 0.005
+	snapshot - /newdisk/ohadsh/work/runs/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1_clip005/model.ckpt-840000
+	MSE-PROPOSED = 45.892414
+	PSNR-MEAN-PROPOSED = 31.547390 [dB]
+	PSNR-STD-PROPOSED = 0.897232 [dB]
+
+
+
+
 ################################################## Random mask Factor 6 ##########################################
 Results 5000 examples:
 

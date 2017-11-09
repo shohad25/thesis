@@ -7,22 +7,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.local_global.k_space_wgan_lg import KSpaceSuperResolutionWGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
-import random
-import time
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.unet.k_space_wgan_unet3 import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
 base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
@@ -73,8 +70,7 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-# mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
-mask_single = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.1, seed=0)
+mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
 
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
@@ -209,16 +205,13 @@ def train_model(mode, checkpoint=None):
 
     tf.train.write_graph(sess.graph_def, FLAGS.train_dir, 'graph.pbtxt', True)
 
-    gen_loss_adversarial = 0.0
+    gen_loss_adversarial = FLAGS.gen_loss_adversarial
     # gen_loss_adversarial = FLAGS.gen_loss_adversarial
     print("Starting with adv loss = %f" % gen_loss_adversarial)
     print("Starting at iteration number: %d " % start_iter)
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
-
-        if i % FLAGS.iters_no_adv == 0:
-            gen_loss_adversarial = FLAGS.gen_loss_adversarial
 
         if i % FLAGS.print_test == 0:
             # Record summary data and the accuracy
@@ -231,17 +224,22 @@ def train_model(mode, checkpoint=None):
 
         else:
             # Training
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                # Update D network
-                for it in np.arange(FLAGS.num_D_updates):
+            # Update D network
+            for it in np.arange(FLAGS.num_D_updates):
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='train', batch_size=FLAGS.mini_batch_size)
+                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
                     _ = sess.run([net.clip_weights])
 
-                # Update G network
+            # Update G network
+            feed = feed_data(data_set, net.labels, net.train_phase,
+                             tt='train', batch_size=FLAGS.mini_batch_size)
+            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                feed[net.adv_loss_w] = gen_loss_adversarial
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
             if i % FLAGS.print_train == 0:
@@ -321,7 +319,9 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         # Copy scripts to training dir
         shutil.copy(os.path.abspath(__file__), args.train_dir)
-        shutil.copy(inspect.getfile(KSpaceSuperResolutionWGAN), args.train_dir)
+        model_file = inspect.getfile(KSpaceSuperResolutionWGAN)
+        model_file = model_file.split('.py')[0]+'.py'
+        shutil.copy(model_file, args.train_dir)
         train_model(args.mode, args.checkpoint)
     elif args.mode == 'evaluate':
         evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint, output_file=args.output_file, output_file_interp=args.output_file_interp)

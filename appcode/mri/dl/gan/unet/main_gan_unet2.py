@@ -6,28 +6,26 @@ and paired as Multi-Channel input
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import sys
-sys.path.append('/home/ohadsh/work/thesis/')
-import tensorflow as tf
-import numpy as np
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.local_global.k_space_wgan_lg_complex_reg import KSpaceSuperResolutionWGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
+
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
-import random
-import time
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.unet.k_space_gan_unet2 import KSpaceSuperResolutionGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
-os.environ['CUDA_VISIBLE_DEVICES'] = "2" 
-base_dir = '/home/ohadsh/work/data/T1/sagittal/' 
+base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
+# print("working on 140 lines images")
+# base_dir = '/sheard/Ohad/thesis/data/SchizData/SchizReg/train/2017_03_02_10_percent/shuffle/'
+# file_names = {'x_r': 'k_space_real', 'x_i': 'k_space_imag', 'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 file_names = {'y_r': 'k_space_real_gt', 'y_i': 'k_space_imag_gt'}
 
 flags = tf.app.flags
@@ -53,7 +51,7 @@ flags.DEFINE_integer('iters_no_adv', 1, 'Iters with adv_w=0')
 flags.DEFINE_integer('print_test', 1000, 'Print test frequency')
 flags.DEFINE_integer('print_train', 100, 'Print train frequency')
 
-flags.DEFINE_integer('num_D_updates', 5, 'Discriminator update freq')
+flags.DEFINE_integer('num_gen_updates', 5, 'Print train frequency')
 flags.DEFINE_integer('random_sampling_factor', 6, 'Random mask sampling factor')
 
 flags.DEFINE_boolean('to_show', False, 'View data')
@@ -72,8 +70,8 @@ flags.DEFINE_string('train_dir', "",
                            """and checkpoint.""")
 logfile = open(os.path.join(FLAGS.train_dir, 'results_%s.log' % str(datetime.datetime.now()).replace(' ', '')), 'w')
 
-mask_single = get_rv_mask(mask_main_dir='/home/ohadsh/work/thesis/common/masks/', factor=FLAGS.random_sampling_factor)
-#mask_single = get_random_gaussian_mask(im_shape=(256, 256), peak_probability=0.7, std=45.0, keep_center=0.1, seed=0)
+mask_single = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=FLAGS.random_sampling_factor)
+
 
 def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     """
@@ -161,7 +159,7 @@ def load_graph():
 
     train_phase = tf.placeholder(tf.bool, name='phase_train')
     adv_loss_w = tf.placeholder(tf.float32, name='adv_loss_w')
-    network = KSpaceSuperResolutionWGAN(input=None, labels=y_input, dims_in=DIMS_IN,
+    network = KSpaceSuperResolutionGAN(input=None, labels=y_input, dims_in=DIMS_IN,
                                       dims_out=DIMS_OUT, FLAGS=FLAGS, train_phase=train_phase, adv_loss_w=adv_loss_w)
     network.build()
     return network
@@ -185,7 +183,9 @@ def train_model(mode, checkpoint=None):
     # Merge all the summaries and write them out to /tmp/mnist_logs
     merged = tf.summary.merge_all()
 
-    sess = tf.Session()
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    sess = tf.Session(config=config)
     init = tf.global_variables_initializer()
 
     writer = defaultdict(dict)
@@ -231,12 +231,14 @@ def train_model(mode, checkpoint=None):
                              tt='train', batch_size=FLAGS.mini_batch_size)
             if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
                 feed[net.adv_loss_w] = gen_loss_adversarial
+
                 # Update D network
-                for it in np.arange(FLAGS.num_D_updates):
+                if k % FLAGS.num_gen_updates == 0:
                     _, d_loss_fake, d_loss_real, d_loss = \
                         sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    _ = sess.run([net.clip_weights])
-
+                    k = 1
+                else:
+                    k += 1
                 # Update G network
                 _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
@@ -282,8 +284,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real = open(os.path.join(output_file, "000000.predict_real.bin"), 'w')
         f_out_imag = open(os.path.join(output_file, "000000.predict_imag.bin"), 'w')
-    if output_file_interp is not None:
-        f_interp = open(os.path.join(output_file_interp, "000000.interp.bin"), 'w')
 
     gen_loss_adversarial = 1.0
 
@@ -294,15 +294,13 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
                              tt=tt, batch_size=FLAGS.mini_batch_size)
             if feed is not None:
                 feed[net.adv_loss_w] = gen_loss_adversarial
-                predict, result, x_interp = sess.run([net.predict_g, net.evaluation, net.x_input_upscale], feed_dict=feed)
+                predict, result = sess.run([net.predict_g, net.evaluation], feed_dict=feed)
 
                 all_acc.append(np.array(result))
                 print('Time: %s , Accuracy for mini_batch is: %s' % (datetime.datetime.now(), result))
                 if output_file is not None:
                     f_out_real.write(predict['real'].ravel())
                     f_out_imag.write(predict['imag'].ravel())
-                if output_file_interp is not None:
-                    f_interp.write(np.concatenate([x_interp['real'], x_interp['imag']], axis=3).ravel())
             else:
                 break
             predict_counter += FLAGS.mini_batch_size
@@ -313,8 +311,6 @@ def evaluate_checkpoint(tt='test', checkpoint=None, output_file=None, output_fil
     if output_file is not None:
         f_out_real.close()
         f_out_imag.close()
-    if output_file_interp is not None:
-        f_interp.close()
     print("Total accuracy is: %f" % np.array(all_acc).mean())
 
 
@@ -323,7 +319,9 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         # Copy scripts to training dir
         shutil.copy(os.path.abspath(__file__), args.train_dir)
-        shutil.copy(inspect.getfile(KSpaceSuperResolutionWGAN), args.train_dir)
+        model_file = inspect.getfile(KSpaceSuperResolutionGAN)
+        model_file = model_file.split('.py')[0]+'.py'
+        shutil.copy(model_file, args.train_dir)
         train_model(args.mode, args.checkpoint)
     elif args.mode == 'evaluate':
         evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint, output_file=args.output_file, output_file_interp=args.output_file_interp)
@@ -341,7 +339,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_file_interp', dest='output_file_interp', default=None, type=str, help='Output file for interpolation output')
     parser.add_argument('--print_train', dest='print_train', type=int, help='Print_Train')
     parser.add_argument('--print_test', dest='print_test', type=int, help='Print Test')
-    parser.add_argument('--num_D_updates', dest='num_D_updates', type=int, help='num_D_updates')
+    parser.add_argument('--num_gen_updates', dest='num_gen_updates', type=int, help='num_gen_updates')
     parser.add_argument('--gen_loss_adversarial', dest='gen_loss_adversarial', type=float, help='gen_loss_adversarial')
     parser.add_argument('--gen_loss_context', dest='gen_loss_context', type=float, help='gen_loss_context')
     parser.add_argument('--learning_rate', dest='learning_rate', type=float, help='learning_rate')

@@ -7,22 +7,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.k_space_wgan_unet_no_res import KSpaceSuperResolutionWGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
-import random
-import time
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.unet.k_space_wgan_unet2 import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
 base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
