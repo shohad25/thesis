@@ -321,7 +321,9 @@ def main(args):
     if args.mode == 'train' or args.mode == 'resume':
         # Copy scripts to training dir
         shutil.copy(os.path.abspath(__file__), args.train_dir)
-        shutil.copy(inspect.getfile(KSpaceSuperResolutionWGAN), args.train_dir)
+        model_file = inspect.getfile(KSpaceSuperResolutionWGAN)
+        model_file = model_file.split('.py')[0]+'.py'
+        shutil.copy(model_file, args.train_dir)
         train_model(args.mode, args.checkpoint)
     elif args.mode == 'evaluate':
         evaluate_checkpoint(tt=args.tt, checkpoint=args.checkpoint, output_file=args.output_file, output_file_interp=args.output_file_interp)
