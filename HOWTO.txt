@@ -36,3 +36,10 @@ snx -s vpn1.bgu.ac.il -u ohas@vpn
 set FREESURFER_HOME = /media/ohadsh/sheard/Ohad/Downloads/freesurfe
 source FreeSurferEnv.csh
 run bin/freeview
+
+FSL segmentation:
+setenv FSLDIR /media/ohadsh/sheard/Ohad/thesis/tools/fsl - already in ~/.tcshrc
+setFSL -> which means $FSLDIR/etc/fslconf/fsl.csh
+cd $FSLDIR/bin
+fast -I 1 -v /media/ohadsh/sheard/Ohad/thesis/tools/examples/new_image.nii.gz
+-I 1- only one iterations of something

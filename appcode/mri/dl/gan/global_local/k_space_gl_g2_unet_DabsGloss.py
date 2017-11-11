@@ -180,10 +180,9 @@ class KSpaceSuperResolutionGLWGAN(BasicModel):
         tf.add_to_collection("predict", predict['imag'])
 
         # Dump prediction out
-        if self.FLAGS.dump_debug:
-            g2_image_to_show = tf.complex(real=predict['real'], imag=predict['imag'])
-            g2_image_to_show = tf.abs(g2_image_to_show)
-            tf.summary.image('G2_reconstructed_output' + 'Fake_from_G',
+        g2_image_to_show = tf.complex(real=predict['real'], imag=predict['imag'])
+        g2_image_to_show = tf.abs(g2_image_to_show)
+        tf.summary.image('G2_reconstructed_output',
                              tf.transpose(g2_image_to_show, (0, 2, 3, 1)),
                              collections='G2', max_outputs=4)
         return predict
