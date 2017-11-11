@@ -45,68 +45,70 @@ class DataCreator:
 
         # For all cases in items
         for case in items:
-            case_name = case.split('.')[0]
-            case_name = case_name.split('/')[0]
-            print "Working on case: " + case_name
+            try:
+                case_name = case.split('.')[0]
+                case_name = case_name.split('/')[0]
+                print "Working on case: " + case_name
 
-            # Set output path and create dir
-            if case_name not in self.mri_data_base.info["train_test_list"]:
-                print "case:  - not in tt list, add 1 as prefix -" + case_name
+                # Set output path and create dir
+                if case_name not in self.mri_data_base.info["train_test_list"]:
+                    print "case:  - not in tt list, add 1 as prefix -" + case_name
+                    continue
+
+                tt = self.mri_data_base.info["train_test_list"][case_name]
+
+                out_path = os.path.join(self.base_out_path, tt, case_name)
+                os.makedirs(out_path)
+                counter = 0
+
+                # Read source data and create k_space + dummy image
+                source_data = data_base.get_source_data(case)
+                image_3d = source_data['img'][0].squeeze()
+                if trans is not None:
+                    image_3d = image_3d.transpose(trans)
+
+                ## HACK - padding image:
+                pad = 256
+                print "PADDING IMAGE TO FIX SIZE! 256-%d " % pad
+                if image_3d.shape[1] > pad:
+                    continue
+                image_3d = pad_image_with_zeros_fixed(dat=image_3d, to_size=[256, pad])
+
+                # Rotate if needed
+                image_3d = self.rotate(image_3d)
+
+                # Normalize image
+                norm_factor = 1.0 / image_3d.max()
+                image_3d = (image_3d * norm_factor).astype('float32')
+                k_space_3d, _ = get_dummy_k_space_and_image(image_3d)
+                meta_data = source_data['meta_data'][0]
+
+                # Set image sizes
+                w = image_3d[:,:,0].shape[0]
+                h = image_3d[:,:,0].shape[1]
+
+                # For each Z in axial limits, create masks and dump examples
+                for z in range(self.axial_limits[0], self.axial_limits[1]+1):
+                    # Set ground truth
+                    image_2d_gt = image_3d[:, :, z]
+                    k_space_2d_gt = k_space_3d[:, :, z]
+                    k_space_real_gt = k_space_2d_gt.real
+                    k_space_imag_gt = k_space_2d_gt.imag
+
+                    # Subsample with factor = factor
+
+                    aug=0
+                    # Dump example
+                    meta_data_to_write = self.create_meta_data(meta_data, case_name, z, aug, norm_factor)
+                    self.dump_example(out_path, counter,
+                                 dict(k_space_real_gt=k_space_real_gt, k_space_imag_gt=k_space_imag_gt,
+                                      meta_data=meta_data_to_write, image_gt=image_2d_gt), debug)
+                    # Add to counter
+                    counter += 1
+                # print "ONE EXAMPLE"
+                # exit()
+            except:
                 continue
-
-            tt = self.mri_data_base.info["train_test_list"][case_name]
-
-            out_path = os.path.join(self.base_out_path, tt, case_name)
-            os.makedirs(out_path)
-            counter = 0
-
-            # Read source data and create k_space + dummy image
-            source_data = data_base.get_source_data(case)
-            image_3d = source_data['img'][0].squeeze()
-            if trans is not None:
-                image_3d = image_3d.transpose(trans)
-
-            ## HACK - padding image:
-            pad = 256
-            print "PADDING IMAGE TO FIX SIZE! 256-%d " % pad
-            if image_3d.shape[1] > pad:
-                continue
-            image_3d = pad_image_with_zeros_fixed(dat=image_3d, to_size=[256, pad])
-
-            # Rotate if needed
-            image_3d = self.rotate(image_3d)
-
-            # Normalize image
-            norm_factor = 1.0 / image_3d.max() 
-            image_3d = (image_3d * norm_factor).astype('float32')
-            k_space_3d, _ = get_dummy_k_space_and_image(image_3d)
-            meta_data = source_data['meta_data'][0]
-
-            # Set image sizes
-            w = image_3d[:,:,0].shape[0]
-            h = image_3d[:,:,0].shape[1]
-
-            # For each Z in axial limits, create masks and dump examples
-            for z in range(self.axial_limits[0], self.axial_limits[1]+1):
-                # Set ground truth
-                image_2d_gt = image_3d[:, :, z]
-                k_space_2d_gt = k_space_3d[:, :, z]
-                k_space_real_gt = k_space_2d_gt.real
-                k_space_imag_gt = k_space_2d_gt.imag
-
-                # Subsample with factor = factor
-
-                aug=0
-                # Dump example
-                meta_data_to_write = self.create_meta_data(meta_data, case_name, z, aug, norm_factor)
-                self.dump_example(out_path, counter,
-                             dict(k_space_real_gt=k_space_real_gt, k_space_imag_gt=k_space_imag_gt,
-                                  meta_data=meta_data_to_write, image_gt=image_2d_gt), debug)
-                # Add to counter
-                counter += 1
-            # print "ONE EXAMPLE"
-            # exit()
-
     def create_meta_data(self, meta_data, case, axial_slice, aug, norm_factor):
         """
         Create meta data vector

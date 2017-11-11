@@ -8,13 +8,17 @@ class FileHandler:
     also, can read this kind of file, reshape it , etc.
     """
 
-    def __init__(self, path, info, read_or_write, name=None):
+    def __init__(self, path, info, read_or_write, name=None, memmap=False):
         self.path = path
         self.info = info
         self.name = name
         self.file_mode = read_or_write
         self.block_size = info["width"] * info["height"] * self.info["channels"]
-        self.file_obj = self.__create_file_obj__()
+        if memmap:
+            self.memmap = self.reshape(np.memmap(self.path, dtype=self.info['dtype'], mode='r'))
+        else:
+            self.file_obj = self.__create_file_obj__()
+
 
     def get_file_obj(self):
         """

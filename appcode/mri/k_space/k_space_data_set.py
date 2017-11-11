@@ -9,7 +9,7 @@ class KspaceDataSet:
     Kspace data base class
     """
 
-    def __init__(self, base_dir, file_names, stack_size=500, shuffle=True, data_base='SchizReg'):
+    def __init__(self, base_dir, file_names, stack_size=500, shuffle=True, data_base='SchizReg', memmap=False):
         """
         Constructor
         :param base_dir: basic dir after shuffle
@@ -21,10 +21,11 @@ class KspaceDataSet:
         self.path = base_dir
         self.file_names = file_names
         self.files_info = get_info(data_base)
-        self.train = DataSet(os.path.join(base_dir, "train"), file_names, stack_size, shuffle=shuffle, files_info=self.files_info)
-        self.test = DataSet(os.path.join(base_dir, "test"), file_names, stack_size, shuffle=shuffle, files_info=self.files_info)
+        self.train = DataSet(os.path.join(base_dir, "train"), file_names, stack_size,
+                             shuffle=shuffle, files_info=self.files_info, memmap=memmap)
+        self.test = DataSet(os.path.join(base_dir, "test"), file_names, stack_size,
+                            shuffle=shuffle, files_info=self.files_info, memmap=memmap)
         self.stack_size = stack_size
-
 
 
 class DataSet:
@@ -32,7 +33,7 @@ class DataSet:
     Train / Test Data Set
     """
 
-    def __init__(self, base_dir, file_names, stack_size, shuffle=True, files_info=None):
+    def __init__(self, base_dir, file_names, stack_size, shuffle=True, files_info=None, memmap=False):
         """
         Constructor
         :param base_dir: basic dir after shuffle
@@ -51,9 +52,9 @@ class DataSet:
         self.shuffle = shuffle
         self.files_info = files_info
         # Init all files objects, for reading
-        self.init_files_obj()
+        self.init_files_obj(memmap)
 
-    def init_files_obj(self):
+    def init_files_obj(self, memmap=False):
         """
         Init file objects, update pointers to start of the file
         :return:
@@ -62,7 +63,7 @@ class DataSet:
         for (file_name, info) in self.files_info.iteritems():
             if file_name in self.file_names:
                 path = os.path.join(self.path, "000000.%s.bin" % file_name)
-                files_obj[file_name] = FileHandler(path, info, "read", name=None)
+                files_obj[file_name] = FileHandler(path, info, "read", name=None, memmap=memmap)
 
         self.files_obj = files_obj
 

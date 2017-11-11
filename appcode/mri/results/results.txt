@@ -198,7 +198,7 @@ STD = 2.6636461380601357
 
 1. random_mask_factor4_D1
 	discriminator updates = 1
-	snapshot - 
+	snapshot - /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/model.ckpt-780000
 	******************BEST NOV 2017******************
 	2500:
 	MSE-PROPOSED = 21.170401

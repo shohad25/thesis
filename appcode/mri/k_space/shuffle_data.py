@@ -8,7 +8,7 @@ import argparse
 from appcode.mri.k_space.files_info import get_info
 
 
-def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123, data_base=None):
+def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123, data_base=None, rand=True):
     """
     Given base train / test dir, this script shuffle examples and create 1 batch of data
     :param base_dir: basic dir
@@ -27,7 +27,8 @@ def shuffle_data(base_dir, output_dir, tt='["train", "test"]', seed=123, data_ba
         os.makedirs(basic_out_path)
         all_examples = glob.glob(os.path.join(base_dir, t, "*/*%s*" % files_info.keys()[0]))
         # Permute the list:
-        random.shuffle(all_examples)
+        if rand:
+            random.shuffle(all_examples)
 
         # Now, write example according to all_examples order
         for (file_name, file_info) in files_info.iteritems():
@@ -65,7 +66,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--seed', required=False, default=123, type=int, help='Seed for pseudorandom initialization')
 
+    parser.add_argument('--rand', required=False, default=True, type=bool, help='Randomize examples')
+
     args = parser.parse_args()
 
     # Run shuffle:
-    shuffle_data(args.base_dir, args.output_dir, args.tt, args.seed, args.data_base)
+    shuffle_data(args.base_dir, args.output_dir, args.tt, args.seed, args.data_base, args.rand)
