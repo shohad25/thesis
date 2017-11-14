@@ -47,7 +47,10 @@ fast -I 1 -v /media/ohadsh/sheard/Ohad/thesis/tools/examples/new_image.nii.gz
 
 
 8. Create nifti data from training, predict and other.
-python play.py --data_dir /media/ohadsh/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_updated/shuffle/ --predict_path /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/predict/train/ --tt train --num_of_cases 500 --output_path /sheard/try/train/
+python $THESIS/appcode/mri/results/create_nifti_from_raw_data.py --data_dir /media/ohadsh/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_updated/shuffle/ --predict_path /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/predict/train/ --tt train --output_path /sheard/try/train/ --random_sampling_factor 4 --num_of_cases 10
 
 9. Create segmentation commands:
-python $THESIS/appcode/mri/results/create_segmentation_commands.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict']" --num_of_cases 20
+python $THESIS/appcode/mri/results/create_segmentation_commands.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict', '_zeroPadding']" --num_of_cases 10
+
+10. Calculate dice score
+python $THESIS/appcode/mri/results/calc_segmentation_statistics.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict', '_zeroPadding']" --num_of_cases 2 --brain_only True
