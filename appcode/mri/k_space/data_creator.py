@@ -243,7 +243,7 @@ def get_rv_mask(mask_main_dir, factor):
     :param factor: sampling factor: 2.5, 4, 6, 8, 10, 20
     :return: 
     """""
-    if factor == 2.5:
+    if factor == 2:
         factor = '2_5'
     full_path = os.path.join(mask_main_dir, "mask%s.bin" % factor)
     if not os.path.exists(full_path):
