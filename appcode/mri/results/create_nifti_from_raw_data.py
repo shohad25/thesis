@@ -6,6 +6,7 @@ from appcode.mri.data.write_nifti_data import write_nifti_data
 from appcode.mri.data.mri_data_base import MriDataBase
 from common.files_IO.file_handler import FileHandler
 from appcode.mri.k_space.utils import get_image_from_kspace
+from appcode.mri.k_space.data_creator import get_rv_mask
 
 file_names = ['k_space_real_gt', 'k_space_imag_gt', 'meta_data']
 import argparse
@@ -15,27 +16,36 @@ predict_names = {'real': '000000.predict_real.bin', 'imag': '000000.predict_imag
 import matplotlib.pyplot as plt
 
 META_KEYS = {'hash':0, 'slice': 1, 'bit_pix':2, 'aug':3, 'norm_factor':4}
+MASKS_DIR = '/media/ohadsh/Data/ohadsh/work/matlab/thesis/'
 
 
-def play(data_dir, predict_path, output_path, data_base, batch_size, num_of_cases=-1, tt='train'):
+def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, batch_size, num_of_cases=-1,
+                               tt='train', random_sampling_factor=None, cs_path=None):
     """
     Assumption - predict on all examples exists
+    This script create nifti files from k-space raw data, original and predictions.
     :param data_dir:
     :param predict_path:
     :param output_path:
     :param data_base:
     :param batch_size:
-    :param num_of_batches:
+    :param num_of_cases:
     :param tt:
+    :param random_sampling_factor:
+    :param cs_path: compressed sensing predicted path
     :return:
     """
 
     db = MriDataBase(data_base)
 
     f_predict = {}
+    cs_pred = None
     for name_pred in ['real', 'imag']:
         f_predict[name_pred] = FileHandler(path=os.path.join(predict_path, predict_names[name_pred]),
                                                    info=predict_info, read_or_write='read', name=name_pred, memmap=True)
+    if cs_path is not None:
+        cs_pred = FileHandler(path=cs_path, info=predict_info, read_or_write='read', name='CS', memmap=True)
+        # write_nifti_data(cs_pred.memmap.transpose(2, 1, 0), output_path='/tmp/', name='CS')
 
     data_set = KspaceDataSet(data_dir, file_names, stack_size=batch_size, shuffle=False, data_base=data_base, memmap=True)
 
@@ -69,10 +79,24 @@ def play(data_dir, predict_path, output_path, data_base, batch_size, num_of_case
             data = get_image_from_kspace(org_real, org_imag).transpose(1, 2, 0)
             write_nifti_data(data, output_path=res_out_path, reference=ref, name=name)
 
+            # Predict from network
             pred_real = f_predict['real'].memmap[idx]
             pred_imag = f_predict['imag'].memmap[idx]
             data = get_image_from_kspace(pred_real, pred_imag).transpose(2, 1, 0)
             write_nifti_data(data, output_path=res_out_path, reference=ref, name=name+"_predict")
+
+            # Zero Padding
+            if random_sampling_factor is not None:
+                mask = get_rv_mask(mask_main_dir=MASKS_DIR, factor=random_sampling_factor)
+                org_real_zero_padded = mask * org_real
+                org_imag_zero_padded = mask * org_imag
+                data = get_image_from_kspace(org_real_zero_padded, org_imag_zero_padded).transpose(1, 2, 0)
+                write_nifti_data(data, output_path=res_out_path, reference=ref, name=name+"_zeroPadding")
+
+            # CS
+            if cs_pred is not None:
+                data = cs_pred.memmap[idx].transpose(2, 1, 0)
+                write_nifti_data(data, output_path=res_out_path, reference=ref, name=name + "_CS")
         except:
             print "BAD: (min, max) = (%d, %d)" % (idx.min(), idx.max())
             continue
@@ -100,7 +124,10 @@ if __name__ == '__main__':
     parser.add_argument('--data_base', dest='data_base', type=str, default='IXI_T1', help='data base name - for file info')
     parser.add_argument('--predict_path', dest='predict_path', type=str, help='run path')
     parser.add_argument('--output_path', dest='output_path', default='./', type=str, help='out path')
+    parser.add_argument('--random_sampling_factor', dest='random_sampling_factor', type=int, default=None,
+                        help='Random sampling factor for zero padding')
+    parser.add_argument('--cs_path', dest='cs_path', default=None, type=str, help='CS path')
     args = parser.parse_args()
 
-    play(args.data_dir, args.predict_path, args.output_path,
-         args.data_base, args.batch_size, args.num_of_cases, args.tt)
+    create_nifti_from_raw_data(args.data_dir, args.predict_path, args.output_path,
+         args.data_base, args.batch_size, args.num_of_cases, args.tt, args.random_sampling_factor, args.cs_path)

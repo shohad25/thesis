@@ -37,9 +37,17 @@ set FREESURFER_HOME = /media/ohadsh/sheard/Ohad/Downloads/freesurfe
 source FreeSurferEnv.csh
 run bin/freeview
 
+7.
 FSL segmentation:
 setenv FSLDIR /media/ohadsh/sheard/Ohad/thesis/tools/fsl - already in ~/.tcshrc
 setFSL -> which means $FSLDIR/etc/fslconf/fsl.csh
 cd $FSLDIR/bin
 fast -I 1 -v /media/ohadsh/sheard/Ohad/thesis/tools/examples/new_image.nii.gz
 -I 1- only one iterations of something
+
+
+8. Create nifti data from training, predict and other.
+python play.py --data_dir /media/ohadsh/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_updated/shuffle/ --predict_path /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/predict/train/ --tt train --num_of_cases 500 --output_path /sheard/try/train/
+
+9. Create segmentation commands:
+python $THESIS/appcode/mri/results/create_segmentation_commands.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict']" --num_of_cases 20
