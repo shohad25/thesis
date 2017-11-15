@@ -196,6 +196,17 @@ STD = 2.6636461380601357
 
 --------------------------------------- ######### Results from random_mask_rv_Nov17 after many bug fixes ######### -----------------------
 
+Matlab 7123 examples - fixed data:
+Zero:
+Mean: 27.412848841780146
+Std: 2.2310414405058099
+CS:
+Mean: 33.774401474097992
+Std: 2.6073875010213143
+on 2500:
+Mean: 33.824387039999998
+Std: 2.6057781256093233
+
 1. random_mask_factor4_D1
 	discriminator updates = 1
 	snapshot - /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/model.ckpt-780000
