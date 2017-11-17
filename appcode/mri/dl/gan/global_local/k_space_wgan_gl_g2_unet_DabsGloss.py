@@ -154,6 +154,12 @@ class KSpaceSuperResolutionGLWGAN(BasicModel):
         conv5 = ops.conv_conv_pool(pool4, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
                                    training=self.train_phase, name='G2_block_5', pool=False)
 
+        print "Noise level: (-0.05,0.05)"
+        minval = -0.05
+        maxval = 0.05
+        noise = tf.random_uniform(shape=tf.shape(conv5), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='noise')
+        conv5 += noise
+
         # concat (16x2)x(16x2) with 32x32
         up6 = ops.upsample_concat(inputA=conv5, input_B=conv4, name='G2_block_6')
         out_dim = 64
