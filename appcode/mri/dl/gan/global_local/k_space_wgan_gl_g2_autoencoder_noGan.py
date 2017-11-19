@@ -163,15 +163,7 @@ class KSpaceSuperResolutionGLWGAN(BasicModel):
         conv_5_bn = ops.batch_norm(conv_5, self.train_phase, decay=0.98, name="G2_bn5")
         relu_5 = tf.nn.relu(conv_5_bn, name='G2_relu5')
 
-        # Add noise GAN
-        print "Noise level: (-0.05,0.05)"
-        minval = -0.05
-        maxval = 0.05
-        noise = tf.random_uniform(shape=tf.shape(relu_5), minval=minval, maxval=maxval, dtype=tf.float32, seed=None, name='noise')
-        relu_5 += noise
-
         # From here, enlarge the network - decoder
-
         # Enlarge to 128x128
         out_shape = [self.batch_size, out_dim, 128, 128]
         conv_6 = ops.conv2d_transpose(relu_5, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2, name="G2_conv_6")
