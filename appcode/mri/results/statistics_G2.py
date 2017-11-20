@@ -4,7 +4,7 @@ import json
 import os
 import matplotlib.pyplot as plt
 from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.utils import get_image_from_kspace, interpolated_missing_samples, zero_padding
+from appcode.mri.k_space.utils import get_image_from_kspace, get_dummy_k_space_and_image
 from common.files_IO.file_handler import FileHandler
 from appcode.mri.k_space.data_creator import get_random_mask, get_subsample, get_random_gaussian_mask, get_rv_mask
 file_names = ['k_space_real_gt', 'k_space_imag_gt']
@@ -58,7 +58,11 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
         name_1 = real_p.keys()[0]
         elements_in_batch = real_p[name_1].shape[0]
 
-        rec_image_1_all = np.abs(np.complex(real=real_p[name_1], imag=imag_p[name_1]))
+        rec_image_1_all = np.abs(real_p[name_1] + 1j * imag_p[name_1])
+        norm_factor = 1.0 / rec_image_1_all.max()
+        rec_image_1_all = (rec_image_1_all * norm_factor).astype('float32')
+        rec_image_1_all_k_space, _ = get_dummy_k_space_and_image(rec_image_1_all)
+        rec_image_1_all = get_image_from_kspace(rec_image_1_all_k_space.real, rec_image_1_all_k_space.imag)
 
         for i in range(0, elements_in_batch):
 
