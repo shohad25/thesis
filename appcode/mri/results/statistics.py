@@ -24,7 +24,6 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
     :param tt: train or test
     :return:
     """
-
     predict_info = {'width': w, 'height': h, 'channels': 1, 'dtype': 'float32'}
 
     f_predict = defaultdict(dict)
@@ -57,6 +56,9 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
         name_1 = real_p.keys()[0]
         elements_in_batch = real_p[name_1].shape[0]
 
+        # Network predicted model 1
+        rec_image_1_all = get_image_from_kspace(real_p[name_1], imag_p[name_1])
+
         for i in range(0, elements_in_batch):
 
             # Original image
@@ -76,8 +78,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
             rec_image_zero = get_image_from_kspace(k_space_real_gt_zero,k_space_imag_gt_zero)
 
             # Network predicted model 1
-            rec_image_1 = get_image_from_kspace(real_p[name_1], imag_p[name_1])[i,:,:].T
-            # k_space_amp_predict_1 = np.log(np.sqrt(real_p[name_1]**2 + imag_p[name_1]**2))[i,:,:].T
+            rec_image_1 = rec_image_1_all[i, :, :].T
 
             error_proposed = np.sum((rec_image_1 - org_image)**2)
             error_zero = np.sum((rec_image_zero - org_image)**2)
@@ -106,7 +107,6 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
 
     print("PSNR-STD-ZERO = %f [dB]" % psnr_std_zero)
     print("PSNR-STD-PROPOSED = %f [dB]" % psnr_std_proposed)
-
 
 def psnr(mse):
     max_val = 256
