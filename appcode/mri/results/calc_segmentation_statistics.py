@@ -38,7 +38,7 @@ def calc_segmentation_statistics(data_dir, num_of_cases=-1, suffixes=None, brain
         all_files_in_dir = os.listdir(path_sub_dir)
         suffix_to_nifti = {}
 
-        print("Working on - %s" % sub_dir)
+        print("Working on - %s, number: (%d / %d)" % (sub_dir, len(TPR[TPR.keys()[0]]), num_of_cases))
         # Collect all relevant files for this case
         for file_type in all_files_in_dir:
             for suffix in suffixes:

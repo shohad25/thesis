@@ -55,15 +55,15 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
 
     # Get all unique case hash
     all_cases = np.unique(meta_data[:, META_KEYS['hash']])
-
     all_cases = all_cases if num_of_cases == -1 else all_cases[:num_of_cases]
 
     # For each case, create indices, build a nifty from real image and predict
+    done = 1
     for case in all_cases:
         try:
             idx = get_case_idx(case, meta_data)
             name = db.info['hash_to_case'][case]
-            print "Working on case: " + name
+            print("Working on case : %s, number= (%d / %d)" % (name, done, num_of_cases))
             ref = os.path.join(db.data_path, name, "IXI"+name+".nii.gz")
 
             if not os.path.exists(ref):
@@ -97,6 +97,8 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
             if cs_pred is not None:
                 data = cs_pred.memmap[idx].transpose(2, 1, 0)
                 write_nifti_data(data, output_path=res_out_path, reference=ref, name=name + "_CS")
+
+            done += 1
         except:
             print "BAD: (min, max) = (%d, %d)" % (idx.min(), idx.max())
             continue

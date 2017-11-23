@@ -23,7 +23,8 @@ def create_segmentation_commands(data_dir, num_of_cases=-1, suffixes=None):
         f.write('setFSL\n')
         cmds = []
         for sub_dir in sub_dirs:
-            if sub_dirs.index(sub_dir) > num_of_cases - 1:
+            index_sub_dir = sub_dirs.index(sub_dir)
+            if  index_sub_dir > num_of_cases - 1:
                 break
             if not os.path.isdir(os.path.join(data_dir, sub_dir)):
                 continue
@@ -38,11 +39,13 @@ def create_segmentation_commands(data_dir, num_of_cases=-1, suffixes=None):
                         bet_cmd = "%s %s %s %s\n" % (BET_CMD, org_path, brain_path, BET_PARAMS)
                         seg_cmd = "%s %s\n" % (SEG_CMD, brain_path)
                         rm_cmd = "echo rm_%s; rm -rf %s/*pve* \n" % (file_type, path_sub_dir)
+                        prog_cmd = "echo case_%s\n" % index_sub_dir
                         if bet_cmd not in cmds and seg_cmd not in cmds and rm_cmd not in cmds:
                             cmds.append('echo Working on %s\n' % file_type)
                             cmds.append(bet_cmd)
                             cmds.append(seg_cmd)
                             cmds.append(rm_cmd)
+                            cmds.append(prog_cmd)
 
         f.writelines(cmds)
     print("Done...")
