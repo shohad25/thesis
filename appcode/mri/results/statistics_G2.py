@@ -59,10 +59,12 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
         elements_in_batch = real_p[name_1].shape[0]
 
         rec_image_1_all = np.abs(real_p[name_1] + 1j * imag_p[name_1])
-        norm_factor = 1.0 / rec_image_1_all.max()
-        rec_image_1_all = (rec_image_1_all * norm_factor).astype('float32')
-        rec_image_1_all_k_space, _ = get_dummy_k_space_and_image(rec_image_1_all)
-        rec_image_1_all = get_image_from_kspace(rec_image_1_all_k_space.real, rec_image_1_all_k_space.imag)
+        if args.norm_predict:
+            norm_factor = 1.0 / rec_image_1_all.max()
+            rec_image_1_all = (rec_image_1_all * norm_factor).astype('float32')
+        # import pdb; pdb.set_trace()
+        # rec_image_1_all_k_space, _ = get_dummy_k_space_and_image(rec_image_1_all)
+        # rec_image_1_all = get_image_from_kspace(rec_image_1_all_k_space.real, rec_image_1_all_k_space.imag)
 
         for i in range(0, elements_in_batch):
 
@@ -132,6 +134,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', dest='checkpoint', type=str, help='checkpoint full path')
     parser.add_argument('--predict_name', dest='predict_name', type=str, help='run name')
     parser.add_argument('--predict_path', dest='predict_path', type=str, help='run path')
+    parser.add_argument('--norm_predict', dest='norm_predict', type=bool, default=True, help='norm predict to 0-1')
     args = parser.parse_args()
 
     keep_center = 0.05
@@ -141,12 +144,11 @@ if __name__ == '__main__':
     predict = {args.predict_name: args.predict_path}
     # predict = {'random_mask_factor4_D1': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv/IXI/random_mask_factor4_D1/predict/train/'}
 
-
     w = 256
     h = 256
     print predict
     print args.checkpoint
-
-    post_train_2v(data_dir=args.data_dir, predict_paths=predict, h=h, w=w, 
+    print args.norm_predict
+    post_train_2v(data_dir=args.data_dir, predict_paths=predict, h=h, w=w,
         tt=args.tt, keep_center=keep_center, DIMS_IN=DIMS_IN, DIMS_OUT=DIMS_OUT, 
         args=args)
