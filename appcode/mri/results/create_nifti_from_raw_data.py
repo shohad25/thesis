@@ -77,12 +77,14 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
             org_real = data_set_tt.files_obj['k_space_real_gt'].memmap[idx]
             org_imag = data_set_tt.files_obj['k_space_imag_gt'].memmap[idx]
             data = get_image_from_kspace(org_real, org_imag).transpose(1, 2, 0)
+            # data = norm_data(data)
             write_nifti_data(data, output_path=res_out_path, reference=ref, name=name)
 
             # Predict from network
             pred_real = f_predict['real'].memmap[idx]
             pred_imag = f_predict['imag'].memmap[idx]
             data = get_image_from_kspace(pred_real, pred_imag).transpose(2, 1, 0)
+            # data = norm_data(data)
             write_nifti_data(data, output_path=res_out_path, reference=ref, name=name+"_predict")
 
             # Zero Padding
@@ -91,11 +93,13 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
                 org_real_zero_padded = mask * org_real
                 org_imag_zero_padded = mask * org_imag
                 data = get_image_from_kspace(org_real_zero_padded, org_imag_zero_padded).transpose(1, 2, 0)
+                # data = norm_data(data)
                 write_nifti_data(data, output_path=res_out_path, reference=ref, name=name+"_zeroPadding")
 
             # CS
             if cs_pred is not None:
                 data = cs_pred.memmap[idx].transpose(2, 1, 0)
+                # data = norm_data(data)
                 write_nifti_data(data, output_path=res_out_path, reference=ref, name=name + "_CS")
 
             done += 1
@@ -115,6 +119,15 @@ def get_case_idx(case_hash, meta_data):
     slice_idx_abs = idx[slice_idx_rel]
     return slice_idx_abs
 
+
+def norm_data(data):
+    """
+    Normalize data
+    :param data:
+    :return:
+    """
+    norm_factor = 1.0 / data.max()
+    return (data * norm_factor).astype('float32')
 
 if __name__ == '__main__':
     
