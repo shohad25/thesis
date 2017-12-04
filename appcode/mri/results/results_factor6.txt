@@ -52,8 +52,15 @@ PSNR-STD-CS: 3.3802524049488629
 	PSNR-STD-PROPOSED = 3.085449 [dB]
 
 
+3. random_mask_factor6_D1_lr2_weighted
+	checkpoint - /newdisk/ohadsh/work/runs/Wgan/random_mask_rv_Dec17/factor6/random_mask_factor6_D1_lr2_weighted/model.ckpt-1260000 
+	
+	MSE-PROPOSED = 55.478519
+	PSNR-MEAN-PROPOSED = 30.723551 [dB]
+	PSNR-STD-PROPOSED = 2.204864 [dB]
 
-3. random_mask_factor6_D1_only_L2
+
+4. random_mask_factor6_D1_only_L2
 	snapshot - /newdisk/ohadsh/work/runs/Wgan/random_mask_rv_Dec17/factor6/random_mask_factor6_D1_only_L2/model.ckpt-210000
 	
 	MSE-PROPOSED = 52.054844
