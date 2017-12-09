@@ -151,8 +151,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         conv_last = ops.conv2d(conv9, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_last")
 
         predict = {}
-        predict['real'] = tf.reshape(self.conv_last[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
-        predict['imag'] = tf.reshape(self.conv_last[:,1,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
+        predict['real'] = tf.reshape(conv_last[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
+        predict['imag'] = tf.reshape(conv_last[:,1,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
 
         with tf.name_scope("final_predict"):
             predict['real'] = tf.add(predict['real'], tf.expand_dims(input_image[:,0,:,:], axis=1), name='real')
