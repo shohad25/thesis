@@ -139,7 +139,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.conv_3_bn = ops.batch_norm(self.conv_3, self.train_phase, decay=0.98, name="G_bn3")
         self.relu_3 = tf.nn.relu(self.conv_3_bn)
 
-
         out_dim = 32
         self.conv_4 = ops.conv2d(self.relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
         self.conv_4_bn = ops.batch_norm(self.conv_4, self.train_phase, decay=0.98, name="G_bn4")
@@ -156,7 +155,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         predict = {}
         predict['real'] = tf.reshape(self.conv_6[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
         predict['imag'] = tf.reshape(self.conv_6[:,1,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_imag')
-
 
         with tf.name_scope("final_predict"):
             predict['real'] = tf.add(predict['real'], tf.expand_dims(input_image[:,0,:,:], axis=1), name='real')
@@ -268,8 +266,11 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         tf.summary.scalar('g_loss', g_loss, collections='G')
 
         # Context loss L2
-        real_diff = tf.contrib.layers.flatten(self.predict_g['real'] - self.labels['real'])
-        imag_diff = tf.contrib.layers.flatten(self.predict_g['imag'] - self.labels['imag'])
+        label_real = tf.expand_dims(self.input_image[:,0,:,], axis=1)
+        label_imag = tf.expand_dims(self.input_image[:,1,:,], axis=1)
+        real_diff = tf.contrib.layers.flatten(self.predict_g['real'] - label_real)
+        imag_diff = tf.contrib.layers.flatten(self.predict_g['imag'] - label_imag)
+
         self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
         print("You are using L2 loss")
 
@@ -362,7 +363,6 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         top_shift = tf.concat(axis=3, values=[bottom_right, bottom_left])
         bottom_shift = tf.concat(axis=3, values=[top_right, top_left])
         shifted_image = tf.concat(axis=2, values=[top_shift, bottom_shift])
-
 
         # Shifting
         top_imag, bottom_imag = tf.split(rec_image_imag, num_or_size_splits=2, axis=2)

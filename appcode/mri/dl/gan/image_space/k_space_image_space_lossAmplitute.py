@@ -151,9 +151,12 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         :return:
         """
         # Context loss L2
+        label_real = tf.expand_dims(self.input_image[:,0,:,], axis=1)
+        label_imag = tf.expand_dims(self.input_image[:,1,:,], axis=1)
+
         print("You are using L2 loss")
         predict_image = tf.abs(tf.complex(real=self.predict_g['real'], imag=self.predict_g['imag']))
-        label_image = tf.abs(tf.complex(real=self.labels['real'], imag=self.labels['imag']))
+        label_image = tf.abs(tf.complex(real=label_real, imag=label_imag))
         self.context_loss = tf.reduce_mean(tf.square(tf.contrib.layers.flatten(predict_image - label_image)))
 
         self.g_loss = self.FLAGS.gen_loss_context * self.context_loss
