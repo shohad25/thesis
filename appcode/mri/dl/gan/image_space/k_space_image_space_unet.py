@@ -86,6 +86,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         #     x_imag += noise_imag
 
         input_image = self.get_reconstructed_image(real=x_real, imag=x_imag, name='Both')
+        self.input_image = input_image
 
         # Create the inputs
         ref_image = self.get_reconstructed_image(real=self.input['real'], imag=self.input['imag'], name='Both')
@@ -172,8 +173,10 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         :return:
         """
         # Context loss L2
-        real_diff = tf.contrib.layers.flatten(self.predict_g['real'] - self.labels['real'])
-        imag_diff = tf.contrib.layers.flatten(self.predict_g['imag'] - self.labels['imag'])
+        label_real = tf.expand_dims(self.input_image[:,0,:,], axis=1)
+        label_imag = tf.expand_dims(self.input_image[:,1,:,], axis=1)
+        real_diff = tf.contrib.layers.flatten(self.predict_g['real'] - label_real)
+        imag_diff = tf.contrib.layers.flatten(self.predict_g['imag'] - label_imag)
         print("You are using L2 loss")
         self.context_loss = tf.reduce_mean(tf.square(real_diff) + tf.square(imag_diff), name='Context_loss_mean')
 
