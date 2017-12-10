@@ -115,7 +115,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
             x_imag += noise_imag
 
         input_image = self.get_reconstructed_image(real=x_real, imag=x_imag, name='Both')
-
+        self.input_image = input_image
         self.x_input_upscale['real'] = x_real
         self.x_input_upscale['imag'] = x_imag
 

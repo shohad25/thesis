@@ -86,7 +86,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         #     x_imag += noise_imag
 
         input_image = self.get_reconstructed_image(real=x_real, imag=x_imag, name='Both')
-
+        self.input_image = input_image
         # Create the inputs
         ref_image = self.get_reconstructed_image(real=self.input['real'], imag=self.input['imag'], name='Both')
         ref_image = tf.abs(tf.complex(real=tf.expand_dims(ref_image[:,0,:,:], axis=1), imag=tf.expand_dims(ref_image[:,1,:,:], axis=1)))
