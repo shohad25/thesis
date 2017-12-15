@@ -85,10 +85,13 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         #     x_real += noise_real
         #     x_imag += noise_imag
 
+        # input image is zero padded image
         input_image = self.get_reconstructed_image(real=x_real, imag=x_imag, name='Both')
-        self.input_image = input_image
+
         # Create the inputs
         ref_image = self.get_reconstructed_image(real=self.input['real'], imag=self.input['imag'], name='Both')
+        self.ref_image = ref_image
+
         ref_image = tf.abs(tf.complex(real=tf.expand_dims(ref_image[:,0,:,:], axis=1), imag=tf.expand_dims(ref_image[:,1,:,:], axis=1)))
         tf.summary.image('G_reference', tf.transpose(ref_image, (0, 2, 3, 1)), collections='G', max_outputs=4)
 
@@ -143,6 +146,14 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # Dump prediction out
         out_image = tf.abs(tf.complex(real=predict['real'], imag=predict['imag']))
         tf.summary.image('G_predict', tf.transpose(out_image, (0, 2, 3, 1)), collections='G', max_outputs=4)
+
+        if self.FLAGS.dump_debug:
+            tf.summary.image('G_predict_real', tf.transpose(predict['real'], (0, 2, 3, 1)), collections='G', max_outputs=4)
+            tf.summary.image('G_predict_imag', tf.transpose(predict['imag'], (0, 2, 3, 1)), collections='G', max_outputs=4)
+            tf.summary.image('G_input_real', tf.transpose(tf.expand_dims(self.ref_image[:, 0, :, ], axis=1), (0, 2, 3, 1)),
+                             collections='G', max_outputs=4)
+            tf.summary.image('G_input_imag', tf.transpose(tf.expand_dims(self.ref_image[:, 1, :, ], axis=1), (0, 2, 3, 1)),
+                             collections='G', max_outputs=4)
         return predict
 
     def __loss__(self):
@@ -151,8 +162,8 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         :return:
         """
         # Context loss L2
-        label_real = tf.expand_dims(self.input_image[:,0,:,], axis=1)
-        label_imag = tf.expand_dims(self.input_image[:,1,:,], axis=1)
+        label_real = tf.expand_dims(self.ref_image[:,0,:,], axis=1)
+        label_imag = tf.expand_dims(self.ref_image[:,1,:,], axis=1)
         real_diff = tf.contrib.layers.flatten(self.predict_g['real'] - label_real)
         imag_diff = tf.contrib.layers.flatten(self.predict_g['imag'] - label_imag)
 
