@@ -7,22 +7,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
-from appcode.mri.k_space.k_space_data_set import KspaceDataSet
-from appcode.mri.k_space.data_creator import get_random_mask, get_random_gaussian_mask, get_rv_mask
-from appcode.mri.dl.gan.image_space.k_space_image_space_unet import KSpaceSuperResolutionWGAN
-from common.deep_learning.helpers import *
-import copy
-import os
-import datetime
 import argparse
-import json
-from collections import defaultdict
-import shutil
+import copy
+import datetime
 import inspect
-import random
-import time
+import json
+import os
+import shutil
+from collections import defaultdict
+
+from appcode.mri.dl.gan.image_space.k_space_image_space_unet import KSpaceSuperResolutionWGAN
+from appcode.mri.k_space.data_creator import get_rv_mask
+from appcode.mri.k_space.k_space_data_set import KspaceDataSet
+from common.deep_learning.helpers import *
 
 # k space data set on loca SSD
 base_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
@@ -207,27 +204,33 @@ def train_model(mode, checkpoint=None):
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
+        try:
+            if i % FLAGS.print_test == 0:
+                # Record summary data and the accuracy
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='test', batch_size=FLAGS.mini_batch_size)
+                if feed is not None:
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+                    run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
+                    save_checkpoint(sess=sess, saver=saver, step=i)
 
-        if i % FLAGS.print_test == 0:
-            # Record summary data and the accuracy
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='test', batch_size=FLAGS.mini_batch_size)
-            if feed is not None:
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
-                save_checkpoint(sess=sess, saver=saver, step=i)
+            else:
+                # Training
+                # Update G network
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='train', batch_size=FLAGS.mini_batch_size)
+                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+                    _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
-        else:
-            # Training
-            # Update G network
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
+                if i % FLAGS.print_train == 0:
+                    run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
+        except (KeyboardInterrupt, SystemExit):
+                raise
+        except:
+                print("Error in iteration, continue")
+                continue
 
-            if i % FLAGS.print_train == 0:
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
     logfile.close()
 
 

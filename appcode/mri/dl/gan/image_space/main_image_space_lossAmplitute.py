@@ -207,27 +207,33 @@ def train_model(mode, checkpoint=None):
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
+        try:
+            if i % FLAGS.print_test == 0:
+                # Record summary data and the accuracy
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='test', batch_size=FLAGS.mini_batch_size)
+                if feed is not None:
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+                    run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
+                    save_checkpoint(sess=sess, saver=saver, step=i)
 
-        if i % FLAGS.print_test == 0:
-            # Record summary data and the accuracy
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='test', batch_size=FLAGS.mini_batch_size)
-            if feed is not None:
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
-                save_checkpoint(sess=sess, saver=saver, step=i)
+            else:
+                # Training
+                # Update G network
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='train', batch_size=FLAGS.mini_batch_size)
+                if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+                    _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
-        else:
-            # Training
-            # Update G network
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
+                if i % FLAGS.print_train == 0:
+                    run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
+        except (KeyboardInterrupt, SystemExit):
+                raise
+        except:
+                print("Error in iteration, continue")
+                continue
 
-            if i % FLAGS.print_train == 0:
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
     logfile.close()
 
 

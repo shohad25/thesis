@@ -217,40 +217,46 @@ def train_model(mode, checkpoint=None):
     k = 1
     # Train the model, and feed in test data and record summaries every 10 steps
     for i in range(start_iter, FLAGS.max_steps):
+        try:
+            if i % FLAGS.print_test == 0:
+                # Record summary data and the accuracy
+                feed = feed_data(data_set, net.labels, net.train_phase,
+                                 tt='test', batch_size=FLAGS.mini_batch_size)
+                if feed is not None:
+                    feed[net.adv_loss_w] = gen_loss_adversarial
+                    run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
+                    save_checkpoint(sess=sess, saver=saver, step=i)
 
-        if i % FLAGS.print_test == 0:
-            # Record summary data and the accuracy
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='test', batch_size=FLAGS.mini_batch_size)
-            if feed is not None:
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['test'], tt='TEST')
-                save_checkpoint(sess=sess, saver=saver, step=i)
+            else:
+                # Training
+                # Update D network
+                for it in np.arange(FLAGS.num_D_updates):
+                    feed = feed_data(data_set, net.labels, net.train_phase,
+                                     tt='train', batch_size=FLAGS.mini_batch_size)
+                    if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
+                        feed[net.adv_loss_w] = gen_loss_adversarial
 
-        else:
-            # Training
-            # Update D network
-            for it in np.arange(FLAGS.num_D_updates):
+                        _, d_loss_fake, d_loss_real, d_loss = \
+                            sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
+                        _ = sess.run([net.clip_weights])
+
+                # Update G network
                 feed = feed_data(data_set, net.labels, net.train_phase,
                                  tt='train', batch_size=FLAGS.mini_batch_size)
                 if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
                     feed[net.adv_loss_w] = gen_loss_adversarial
+                    _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
 
-                    _, d_loss_fake, d_loss_real, d_loss = \
-                        sess.run([net.train_op_d, net.d_loss_fake, net.d_loss_real, net.d_loss], feed_dict=feed)
-                    _ = sess.run([net.clip_weights])
+                if i % FLAGS.print_train == 0:
+                    run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
 
-            # Update G network
-            feed = feed_data(data_set, net.labels, net.train_phase,
-                             tt='train', batch_size=FLAGS.mini_batch_size)
-            if (feed is not None) and (feed[feed.keys()[0]].shape[0] == FLAGS.mini_batch_size):
-                feed[net.adv_loss_w] = gen_loss_adversarial
-                _, g_loss = sess.run([net.train_op_g, net.g_loss], feed_dict=feed)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            print("Error in iteration, continue")
+        continue
 
-            if i % FLAGS.print_train == 0:
-                run_evaluation(sess, feed, step=i, net=net, writer=writer['train'], tt='TRAIN')
-
-            # import pdb
+                # import pdb
             # pdb.set_trace()
             # print(dbg[0].mean(), dbg[1].mean())
 

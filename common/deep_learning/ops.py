@@ -142,7 +142,7 @@ def batch_norm_new(in_tensor, phase_train, name, decay=0.99, data_format='NCHW')
                                              scale=True)
 
 
-def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_channels=None, data_format='NCHW',
+def res_block(input_, output_dim, train_phase, k_h=3, k_w=3, d_h=1, d_w=1, in_channels=None, data_format='NCHW',
               name="conv2d"):
     """
     Define residual block
@@ -157,7 +157,6 @@ def res_block(input_, output_dim, train_phase, k_h=5, k_w=5, d_h=2, d_w=2, in_ch
     :param name:
     :return:
     """
-
     conv_1 = conv2d(input_, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
                     in_channels=in_channels, data_format=data_format, name=name + "_conv_1")
     conv_1_bn = batch_norm(conv_1, train_phase, decay=0.98, name=name + "_bn_1", data_format=data_format)
