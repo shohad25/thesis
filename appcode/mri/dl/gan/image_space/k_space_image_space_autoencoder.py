@@ -106,33 +106,33 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # Model convolutions
         # Model convolutions
         out_dim = 32
-        conv_1 = ops.conv2d(input_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G1_conv_1")
-        conv_1_bn = ops.batch_norm(conv_1, self.train_phase, decay=0.98, name="G1_bn1")
-        relu_1 = tf.nn.relu(conv_1_bn, name='G1_relu1')
+        conv_1 = ops.conv2d(input_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
+        conv_1_bn = ops.batch_norm(conv_1, self.train_phase, decay=0.98, name="G_bn1")
+        relu_1 = tf.nn.relu(conv_1_bn, name='G_relu1')
 
         # Pool to 128x128
-        conv_2 = ops.conv2d(relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G1_conv_2")
-        conv_2_bn = ops.batch_norm(conv_2, self.train_phase, decay=0.98, name="G1_bn2")
+        conv_2 = ops.conv2d(relu_1, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
+        conv_2_bn = ops.batch_norm(conv_2, self.train_phase, decay=0.98, name="G_bn2")
         pool_2 = tf.layers.max_pooling2d(conv_2_bn, pool_size=[2, 2], strides=2, padding='same',
-                                         data_format='channels_first', name="G1_pool_2")
-        relu_2 = tf.nn.relu(pool_2, name='G1_relu2')
+                                         data_format='channels_first', name="G_pool_2")
+        relu_2 = tf.nn.relu(pool_2, name='G_relu2')
 
         # Stay with 128x128
-        conv_3 = ops.conv2d(relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G1_conv_3")
-        conv_3_bn = ops.batch_norm(conv_3, self.train_phase, decay=0.98, name="G1_bn3")
-        relu_3 = tf.nn.relu(conv_3_bn, name='G1_relu3')
+        conv_3 = ops.conv2d(relu_2, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
+        conv_3_bn = ops.batch_norm(conv_3, self.train_phase, decay=0.98, name="G_bn3")
+        relu_3 = tf.nn.relu(conv_3_bn, name='G_relu3')
 
         # Pool to 64x64
-        conv_4 = ops.conv2d(relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G1_conv_4")
-        conv_4_bn = ops.batch_norm(conv_4, self.train_phase, decay=0.98, name="G1_bn4")
+        conv_4 = ops.conv2d(relu_3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_4")
+        conv_4_bn = ops.batch_norm(conv_4, self.train_phase, decay=0.98, name="G_bn4")
         pool_4 = tf.layers.max_pooling2d(conv_4_bn, pool_size=[2, 2], strides=2, padding='same',
-                                         data_format='channels_first', name="G1_pool_4")
-        relu_4 = tf.nn.relu(pool_4, name='G1_relu4')
+                                         data_format='channels_first', name="G_pool_4")
+        relu_4 = tf.nn.relu(pool_4, name='G_relu4')
 
         # Stay with 64x64
-        conv_5 = ops.conv2d(relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G1_conv_5")
-        conv_5_bn = ops.batch_norm(conv_5, self.train_phase, decay=0.98, name="G1_bn5")
-        relu_5 = tf.nn.relu(conv_5_bn, name='G1_relu5')
+        conv_5 = ops.conv2d(relu_4, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_5")
+        conv_5_bn = ops.batch_norm(conv_5, self.train_phase, decay=0.98, name="G_bn5")
+        relu_5 = tf.nn.relu(conv_5_bn, name='G_relu5')
 
         # Add noise GAN
         # print "Noise level: (-0.05,0.05)"
@@ -146,23 +146,23 @@ class KSpaceSuperResolutionWGAN(BasicModel):
 
         # Enlarge to 128x128
         out_shape = [self.batch_size, out_dim, 128, 128]
-        conv_6 = ops.conv2d_transpose(relu_5, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2, name="G1_conv_6")
-        conv_6_bn = ops.batch_norm(conv_6, self.train_phase, decay=0.98, name="G1_bn6")
-        relu_6 = tf.nn.relu(conv_6_bn, name='G1_relu6')
+        conv_6 = ops.conv2d_transpose(relu_5, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2, name="G_conv_6")
+        conv_6_bn = ops.batch_norm(conv_6, self.train_phase, decay=0.98, name="G_bn6")
+        relu_6 = tf.nn.relu(conv_6_bn, name='G_relu6')
 
         # Stay with 128x128
-        conv_7 = ops.conv2d(relu_6, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G1_conv_7")
-        conv_7_bn = ops.batch_norm(conv_7, self.train_phase, decay=0.98, name="G1_bn7")
-        relu_7 = tf.nn.relu(conv_7_bn, name='G1_relu7')
+        conv_7 = ops.conv2d(relu_6, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_7")
+        conv_7_bn = ops.batch_norm(conv_7, self.train_phase, decay=0.98, name="G_bn7")
+        relu_7 = tf.nn.relu(conv_7_bn, name='G_relu7')
 
         # Enlarge to 256x256
         out_shape = [self.batch_size, out_dim, 256, 256]
-        conv_8 = ops.conv2d_transpose(relu_7, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2, name="G1_conv_8")
-        conv_8_bn = ops.batch_norm(conv_8, self.train_phase, decay=0.98, name="G1_bn8")
-        relu_8 = tf.nn.relu(conv_8_bn, name='G1_relu8')
+        conv_8 = ops.conv2d_transpose(relu_7, output_shape=out_shape, k_h=3, k_w=3, d_h=2, d_w=2, name="G_conv_8")
+        conv_8_bn = ops.batch_norm(conv_8, self.train_phase, decay=0.98, name="G_bn8")
+        relu_8 = tf.nn.relu(conv_8_bn, name='G_relu8')
 
         out_dim = 2
-        conv_last = ops.conv2d(relu_8, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G1_conv_last")
+        conv_last = ops.conv2d(relu_8, output_dim=out_dim, k_h=1, k_w=1, d_h=1, d_w=1, name="G_conv_last")
 
         predict = {}
         predict['real'] = tf.reshape(conv_last[:,0,:,:], [-1, self.dims_out[0], self.dims_out[1], self.dims_out[2]], name='G_predict_real')
