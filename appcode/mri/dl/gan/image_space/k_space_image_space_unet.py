@@ -107,47 +107,47 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # Model convolutions
         out_dim = 8  # 256x256 => 128x128
         conv1, pool1 = ops.conv_conv_pool(input_image, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                          training=self.train_phase, name='G_block_1')
+                                          training=self.train_phase, name='G_block_1', norm=False)
 
         out_dim = 16  # 128x128 => 64x64
         conv2, pool2 = ops.conv_conv_pool(pool1, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                          training=self.train_phase, name='G_block_2')
+                                          training=self.train_phase, name='G_block_2', norm=False)
 
         out_dim = 32  # 64x128 => 32x32
         conv3, pool3 = ops.conv_conv_pool(pool2, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                          training=self.train_phase, name='G_block_3')
+                                          training=self.train_phase, name='G_block_3', norm=False)
 
         out_dim = 64  # 32x32 => 16x16
         conv4, pool4 = ops.conv_conv_pool(pool3, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                          training=self.train_phase, name='G_block_4')
+                                          training=self.train_phase, name='G_block_4', norm=False)
 
         out_dim = 128  # 16x16
         conv5 = ops.conv_conv_pool(pool4, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                   training=self.train_phase, name='G_block_5', pool=False)
+                                   training=self.train_phase, name='G_block_5', pool=False, norm=False)
 
         # concat (16x2)x(16x2) with 32x32
         up6 = ops.upsample_concat(inputA=conv5, input_B=conv4, name='G_block_6')
         out_dim = 64
         conv6 = ops.conv_conv_pool(up6, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                   training=self.train_phase, name='G_block_6', pool=False)
+                                   training=self.train_phase, name='G_block_6', pool=False, norm=False)
 
         # concat (32x2)x(32x2) with 64x64
         up7 = ops.upsample_concat(inputA=conv6, input_B=conv3, name='G_block_7')
         out_dim = 32
         conv7 = ops.conv_conv_pool(up7, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                   training=self.train_phase, name='G_block_7', pool=False)
+                                   training=self.train_phase, name='G_block_7', pool=False, norm=False)
 
         # concat (64x2)x(64x2) with 128x128
         up8 = ops.upsample_concat(inputA=conv7, input_B=conv2, name='G_block_8')
         out_dim = 16
         conv8 = ops.conv_conv_pool(up8, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                   training=self.train_phase, name='G_block_8', pool=False)
+                                   training=self.train_phase, name='G_block_8', pool=False, norm=False)
 
         # concat (128x2)x(128x2) with 256x256
         up9 = ops.upsample_concat(inputA=conv8, input_B=conv1, name='G_block_9')
         out_dim = 8
         conv9 = ops.conv_conv_pool(up9, n_filters=[out_dim, out_dim], activation=tf.nn.relu,
-                                   training=self.train_phase, name='G_block_9', pool=False)
+                                   training=self.train_phase, name='G_block_9', pool=False, norm=False)
 
         # reduce - 256x256x8 -> 256x256x2
         out_dim = 2

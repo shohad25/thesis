@@ -143,7 +143,7 @@ def batch_norm_new(in_tensor, phase_train, name, decay=0.99, data_format='NCHW')
 
 
 def res_block(input_, output_dim, train_phase, k_h=3, k_w=3, d_h=1, d_w=1, in_channels=None, data_format='NCHW',
-              name="conv2d"):
+              name="conv2d", norm=True):
     """
     Define residual block
     :param input_:
@@ -159,14 +159,21 @@ def res_block(input_, output_dim, train_phase, k_h=3, k_w=3, d_h=1, d_w=1, in_ch
     """
     conv_1 = conv2d(input_, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
                     in_channels=in_channels, data_format=data_format, name=name + "_conv_1")
-    conv_1_bn = batch_norm(conv_1, train_phase, decay=0.98, name=name + "_bn_1", data_format=data_format)
-    relu_1 = tf.nn.relu(conv_1_bn, name=name + "_relu_1")
+    if norm:
+        conv_1_bn = batch_norm(conv_1, train_phase, decay=0.98, name=name + "_bn_1", data_format=data_format)
+        relu_1 = tf.nn.relu(conv_1_bn, name=name + "_relu_1")
+    else:
+        relu_1 = tf.nn.relu(conv_1, name=name + "_relu_1")
 
     conv_2 = conv2d(relu_1, output_dim=output_dim, k_h=k_h, k_w=k_w, d_h=d_h, d_w=d_w,
                     in_channels=in_channels, data_format=data_format, name=name + "_conv_2")
-    conv_2_bn = batch_norm(conv_2, train_phase, decay=0.98, name=name + "_bn_2", data_format=data_format)
+    if norm:
+        conv_2_bn = batch_norm(conv_2, train_phase, decay=0.98, name=name + "_bn_2", data_format=data_format)
 
-    addition = input_ + conv_2_bn
+        addition = input_ + conv_2_bn
+    else:
+        addition = input_ + conv_2
+
     relu_2 = tf.nn.relu(addition, name=name + "_relu_2")
 
     return relu_2
@@ -184,7 +191,7 @@ def collect_reg(reg_dict):
         tf.add_to_collection("regularization_" + reg_name, reg_value)
 
 
-def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.nn.relu, data_format='NCHW'):
+def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.nn.relu, data_format='NCHW', norm=True):
     """ TAKEN FROM https://github.com/kkweon/UNet-in-Tensorflow/blob/master/train.py
     {Conv -> BN -> RELU}x2 -> {Pool, optional}
     Args:
@@ -206,8 +213,9 @@ def conv_conv_pool(input_, n_filters, training, name, pool=True, activation=tf.n
         for i, F in enumerate(n_filters):
             net = conv2d(input_=net, output_dim=F, k_h=3, k_w=3, d_h=1, d_w=1, in_channels=None,
                          data_format='NCHW', name="conv_{}".format(i + 1), hist=False)
-            net = batch_norm(in_tensor=net, phase_train=training, name="bn_{}".format(i + 1), decay=0.98,
-                             data_format='NCHW')
+            if norm:
+                net = batch_norm(in_tensor=net, phase_train=training, name="bn_{}".format(i + 1), decay=0.98,
+                                 data_format='NCHW')
             net = activation(net, name="relu{}_{}".format(name, i + 1))
 
         if pool is False:

@@ -107,28 +107,26 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         # Model convolutions
         out_dim = 32
         conv_1 = ops.conv2d(input_image, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_1")
-        conv_1_bn = ops.batch_norm(conv_1, self.train_phase, decay=0.98, name="G_bn1")
-        relu_1 = tf.nn.relu(conv_1_bn)
+        relu_1 = tf.nn.relu(conv_1)
 
         out_dim = 32
-        res1 = ops.res_block(relu_1, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res1")
+        res1 = ops.res_block(relu_1, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res1", norm=False)
 
         out_dim = 32
-        res2 = ops.res_block(res1, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res2")
+        res2 = ops.res_block(res1, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res2", norm=False)
 
         out_dim = 32
-        res3 = ops.res_block(res2, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res3")
+        res3 = ops.res_block(res2, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res3", norm=False)
 
         out_dim = 8
         conv_2 = ops.conv2d(res3, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_2")
-        conv_2_bn = ops.batch_norm(conv_2, self.train_phase, decay=0.98, name="G_bn2")
-        relu_2 = tf.nn.relu(conv_2_bn)
+        relu_2 = tf.nn.relu(conv_2)
 
         out_dim = 8
-        res4 = ops.res_block(relu_2, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res4")
+        res4 = ops.res_block(relu_2, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res4", norm=False)
 
         out_dim = 8
-        res5 = ops.res_block(res4, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res5")
+        res5 = ops.res_block(res4, out_dim, self.train_phase, k_h=3, k_w=3, d_h=1, d_w=1, name="G_res5", norm=False)
 
         out_dim = 2
         conv_3 = ops.conv2d(res5, output_dim=out_dim, k_h=3, k_w=3, d_h=1, d_w=1, name="G_conv_3")
