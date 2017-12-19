@@ -54,3 +54,7 @@ python $THESIS/appcode/mri/results/create_segmentation_commands.py --data_dir /m
 
 10. Calculate dice score
 python $THESIS/appcode/mri/results/calc_segmentation_statistics.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict', '_zeroPadding']" --num_of_cases 2 --brain_only True
+
+
+11. Viewer:
+python $THESIS/appcode/mri/results/viewer.py --data_dir /media/ohadsh/sheard/try/results/factor6/random_mask_factor6_D1_lr2_weighted_2_model.ckpt-1280000/ --suffixes "['','_CS', '_predict']" --num_of_cases 3 --brain_only True --views "['brains','segs']" --mask "{'x1': 35, 'x2': 245, 'y1': 20, 'y2': 256}"

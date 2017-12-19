@@ -82,7 +82,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
 
             ############ Original############
             ax[0][0].set_title('Original Image')
-            ax[0][0].imshow(org_image[50:150,50:150], interpolation="none", cmap="gray")
+            ax[0][0].imshow(org_image[30:180,30:180], interpolation="none", cmap="gray")
 
             # ax[1][0].set_title('Original K-space')
             # ax[1][0].imshow(k_space_amp_gt, interpolation="none", cmap="gray")
@@ -93,7 +93,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             
             ########### Interpolated ############
             ax[0][1].set_title('Rec Image zero Padded:')
-            ax[0][1].imshow(rec_image_zero_pad[50:150,50:150], interpolation="none", cmap="gray")
+            ax[0][1].imshow(rec_image_zero_pad[30:180,30:180], interpolation="none", cmap="gray")
             #
             # ax[1][1].set_title('Interp K-space zero Padded:')
             # ax[1][1].imshow(k_space_amp_zero_pad, interpolation="none", cmap="gray")
@@ -103,7 +103,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
 
             ########### DNN 1 ############
             ax[0][2].set_title('DNN - ' + name_1)
-            ax[0][2].imshow(rec_image_1[50:150,50:150], interpolation="none", cmap="gray")
+            ax[0][2].imshow(rec_image_1[30:180,30:180], interpolation="none", cmap="gray")
 
             # ax[1][2].set_title('DNN K-space _ ' + name_1)
             # ax[1][2].imshow(k_space_amp_predict_1, interpolation="none", cmap="gray")
@@ -113,7 +113,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
 
             ########### DNN 2 ############
             ax[0][3].set_title('DNN  - ' + name_2)
-            ax[0][3].imshow(rec_image_2[50:150,50:150], interpolation="none", cmap="gray")
+            ax[0][3].imshow(rec_image_2[30:180,30:180], interpolation="none", cmap="gray")
 
             # ax[1][3].set_title('DNN K-space - ' + name_2)
             # ax[1][3].imshow(k_space_amp_predict_2, interpolation="none", cmap="gray")

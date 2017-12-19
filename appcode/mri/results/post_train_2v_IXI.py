@@ -102,11 +102,11 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
             ax[1][1].imshow(np.log(1+np.abs(rec_image_zero_pad - org_image)), interpolation="none", cmap="gray")
 
             ########### DNN 1 ############
-            ax[0][2].set_title('DNN - ' + name_1)
-            ax[0][2].imshow(rec_image_1, interpolation="none", cmap="gray")
+            # ax[0][2].set_title('DNN - ' + name_1)
+            # ax[0][2].imshow(rec_image_1, interpolation="none", cmap="gray")
 
-            # ax[1][2].set_title('DNN K-space _ ' + name_1)
-            # ax[1][2].imshow(k_space_amp_predict_1, interpolation="none", cmap="gray")
+            ax[0][2].set_title('DNN K-space _ ' + name_1)
+            ax[0][2].imshow(np.log(1+k_space_amp_predict_1), interpolation="none", cmap="gray")
 
             ax[1][2].set_title('Diff-imag')
             ax[1][2].imshow(np.log(1+np.abs(rec_image_1 - org_image)), interpolation="none", cmap="gray")
@@ -128,15 +128,15 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', show=False, 
     plt.close()
 
 if __name__ == '__main__':
-    data_dir = '/media/ohadsh/Data/ohadsh/work/data/T1/sagittal/'
+    data_dir = '/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_subset_100/'
 
     keep_center = 0.05
     DIMS_IN = np.array([256, 256, 1])
     DIMS_OUT = np.array([256, 256, 1])
     sampling_factor = 4
 
-    predict = {'random_mask_factor4_single': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1/predict/train/',
-               'random_mask_factor4_single2': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1/predict/train/'
+    predict = {'random_mask_factor4_single': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1/predict_subset/train/',
+               'random_mask_factor4_single2': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1/predict_subset/train/'
                }
 
     w = 256

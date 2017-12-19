@@ -46,7 +46,6 @@ TODO: update results with new segmentations
 	PSNR-MEAN-PROPOSED = 34.595413 [dB]
 	PSNR-STD-PROPOSED = 2.519795 [dB]
 
-	Segmentation:
 	Version - _CS
 	TPR  = 0.971476, 0.014918 ||| [ 0.97121471  0.97508202  0.96139864  0.97820693] , [ 0.01773889  0.00834256  0.01849756  0.01509436]
 	FPR  = 0.028524, 0.014918 ||| [ 0.02878529  0.02491798  0.03860136  0.02179307] , [ 0.01773889  0.00834256  0.01849756  0.01509436]
@@ -62,7 +61,6 @@ TODO: update results with new segmentations
 	FPR  = 0.018745, 0.006464 ||| [ 0.0141269   0.01740902  0.02733685  0.01610808] , [ 0.00634303  0.00452898  0.00859443  0.00639022]
 	DICE = 0.896592, 0.035876 ||| [ 0.99070243  0.83368799  0.8587243   0.90325436] , [ 0.0043083   0.03345836  0.04366489  0.06207189]
 
-
 	MASKED PSNR
 	Version - _CS
 	PSNR  = 36.911899, 3.241738 ||| [ 29.62490282  39.11940566  37.24738633  41.65590221] , [ 4.4159232   2.43228553  2.99553326  3.12321097]
@@ -71,8 +69,7 @@ TODO: update results with new segmentations
 	Version - _predict
 	PSNR  = 39.590768, 3.494365 ||| [ 33.89929941  40.49673375  40.10905673  43.85798246] , [ 4.98588141  2.57589274  3.2542986   3.16138531]
 
-
-
+	
 2. random_mask_factor4_D1_only_L2
    ONLY L2 Loss on k-space
    snapshot - /newdisk/ohadsh/work/runs/Wgan/random_mask_rv_Dec17/factor4/random_mask_factor4_D1_only_L2/model.ckpt-90000
