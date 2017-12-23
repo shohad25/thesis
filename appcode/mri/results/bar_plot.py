@@ -26,7 +26,7 @@ psnr_no_masking = {
 
 # example data
 methods = psnr_no_masking['2.5'].keys()
-x = [2.5, 4, 6]
+x = np.array([2.5, 4, 6])
 y_mean = {}
 y_std = {}
 for method in methods:
@@ -37,14 +37,15 @@ for method in methods:
 plt.figure()
 fmts = ['D', '+', 'x', 'o']
 ind = 0
+ad = 0
 for method in methods:
-    plt.errorbar(x, y_mean[method], yerr=y_std[method], fmt=fmts[methods.index(method)], label=method, capsize=5, capthick=1.5)
+    plt.errorbar(x+ad, y_mean[method], yerr=y_std[method], fmt=fmts[methods.index(method)], label=method, capsize=5, capthick=1.5)
+    ad += 0.05
 
 plt.title("Error in PSNR, without masking")
-plt.grid('on')
+plt.grid('on', linestyle='-', linewidth=0.2)
 plt.ylabel('PSNR[dB]')
 plt.xlabel('Sampling factor')
 plt.legend()
-
-# plt.xticks(x, x)
+plt.xticks(x, x)
 plt.show()

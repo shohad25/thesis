@@ -101,9 +101,6 @@ def feed_data(data_set, y_input, train_phase, tt='train', batch_size=10):
     if len(real) == 0 or len(imag) == 0:
         return None
 
-    # start_line = int(10*random.random() - 5)
-    # mask_single = get_random_mask(w=DIMS_OUT[2], h=DIMS_OUT[1], factor=sampling_factor, start_line=start_line, keep_center=keep_center)
-
     feed = {y_input['real']: real[:,:,:,np.newaxis].transpose(0,3,1,2),
             y_input['imag']: imag[:,:,:,np.newaxis].transpose(0,3,1,2),
             y_input['mask']: mask_single[np.newaxis, :, :, np.newaxis].transpose(0,3,1,2),
