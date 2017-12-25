@@ -135,8 +135,8 @@ if __name__ == '__main__':
     DIMS_OUT = np.array([256, 256, 1])
     sampling_factor = 4
 
-    predict = {'random_mask_factor4_single': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1/predict_subset/train/',
-               'random_mask_factor4_single2': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1/predict_subset/train/'
+    predict = {'random_mask_factor4_single': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1_weighted_resume_old/predict_subset/train/',
+               'random_mask_factor4_single2': '/sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/factor4/random_mask_factor4_D1_weighted_resume_old/predict_subset/train/'
                }
 
     w = 256

@@ -25,10 +25,13 @@ How to file:
 from appcode/mri/k_space:
 python create_base_data_for_train.py --data_base_name=SchizReg --output_dir=/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/ ; python ./shuffle_data.py --base_dir=/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/base --output_dir=/media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/train/03_01_2016/ --seed=456
 
+Good updated example:
+cd ~/work/python/thesis/appcode/mri/k_space; set BASE=/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal/ ; python create_base_data_for_train.py --data_base_name=IXI_T1 --output_dir=${BASE} --axial_limits "[30,122]" --rot 90 ; python shuffle_data.py --base_dir=${BASE}/base/ --output_dir=${BASE}/ --data_base IXI_T1
+
 
 5. Train and have fun
 
-rsync -raP /sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/* ohadsh@132.72.48.22:/home/ohadsh/work/data/SchizReg
+rsync -raP /sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/* ohadsh@132.72.48.22:/home/ohadsh/work/data/SchizReg/
 snx -s vpn1.bgu.ac.il -u ohas@vpn
 6013
 
@@ -47,10 +50,10 @@ fast -I 1 -v /media/ohadsh/sheard/Ohad/thesis/tools/examples/new_image.nii.gz
 
 
 8. Create nifti data from training, predict and other.
-python $THESIS/appcode/mri/results/create_nifti_from_raw_data.py --data_dir /media/ohadsh/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_updated/shuffle/ --predict_path /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/predict/train/ --tt train --output_path /sheard/try/train/ --random_sampling_factor 4 --num_of_cases 10
+python $THESIS/appcode/mri/results/create_nifti_from_raw_data.py --data_dir /media/ohadsh/sheard/Ohad/thesis/data/IXI/data_for_train/T1/sagittal_updated/shuffle/ --predict_path /sheard/googleDrive/Master/runs/server/Wgan/random_mask_rv_Nov17/IXI/random_mask_factor4_D1/predict/train/ --cs_path /sheard/googleDrive/Master/runs/CS/IXI/random_mask_subset/factor4/cs_mri_predict.bin --tt train --output_path /sheard/try/train/ --random_sampling_factor 4 --num_of_cases 10
 
 9. Create segmentation commands:
-python $THESIS/appcode/mri/results/create_segmentation_commands.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict', '_zeroPadding']" --num_of_cases 10
+python $THESIS/appcode/mri/results/create_segmentation_commands.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict', '_zeroPadding', '_CS']" --num_of_cases 10
 
 10. Calculate dice score
 python $THESIS/appcode/mri/results/calc_segmentation_statistics.py --data_dir /media/ohadsh/sheard/try/train/ --suffixes "['','_predict', '_zeroPadding']" --num_of_cases 2 --brain_only True
