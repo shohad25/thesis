@@ -20,7 +20,7 @@ MASKS_DIR = '/media/ohadsh/Data/ohadsh/work/matlab/thesis/'
 
 
 def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, batch_size, num_of_cases=-1,
-                               tt='train', random_sampling_factor=None, cs_path=None):
+                               tt='train', source='k_space', random_sampling_factor=None, cs_path=None):
     """
     Assumption - predict on all examples exists
     This script create nifti files from k-space raw data, original and predictions.
@@ -83,7 +83,11 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
             # Predict from network
             pred_real = f_predict['real'].memmap[idx]
             pred_imag = f_predict['imag'].memmap[idx]
-            data = get_image_from_kspace(pred_real, pred_imag).transpose(2, 1, 0)
+
+            if source == 'k_space':
+                data = get_image_from_kspace(pred_real, pred_imag).transpose(2, 1, 0)
+            else:
+                data = 256*np.abs(pred_real+ 1j * pred_imag).transpose(2, 1, 0)
             # data = norm_data(data)
             write_nifti_data(data, output_path=res_out_path, reference=ref, name=name+"_predict")
 
@@ -139,10 +143,12 @@ if __name__ == '__main__':
     parser.add_argument('--data_base', dest='data_base', type=str, default='IXI_T1', help='data base name - for file info')
     parser.add_argument('--predict_path', dest='predict_path', type=str, help='run path')
     parser.add_argument('--output_path', dest='output_path', default='./', type=str, help='out path')
+    parser.add_argument('--source', dest='source', default='k_space', type=str, help='source')
     parser.add_argument('--random_sampling_factor', dest='random_sampling_factor', type=int, default=None,
                         help='Random sampling factor for zero padding')
     parser.add_argument('--cs_path', dest='cs_path', default=None, type=str, help='CS path')
     args = parser.parse_args()
 
     create_nifti_from_raw_data(args.data_dir, args.predict_path, args.output_path,
-         args.data_base, args.batch_size, args.num_of_cases, args.tt, args.random_sampling_factor, args.cs_path)
+         args.data_base, args.batch_size, args.num_of_cases, args.tt, args.source,
+                               args.random_sampling_factor, args.cs_path)

@@ -4,18 +4,24 @@ import os
 import argparse
 import nibabel as nib
 import matplotlib.pyplot as plt
+import json
 import copy
 import sys
-from PIL import Image
+import matplotlib.patches as patches
 NII_SUFFIX = '.nii.gz'
 SEG_SUFFIX = '_seg'
 BRAIN_SUFFIX = '_brain'
-IMG_FORMAT = 'tif'
+# IMG_FORMAT = 'eps'
+IMG_FORMAT = 'png'
+ROI_FORMAT = 'roi'
+MASK_FORMAT = 'mask'
+DPI = 250
 CLASSES = [0,1,2,3]
 
 
 class Viewer(object):
-    def __init__(self, data_dir, output_dir='/tmp/', num_of_cases=-1, suffixes=None, brain_only=True, views=None, mask=None):
+    def __init__(self, data_dir, output_dir='/tmp/', num_of_cases=-1, suffixes=None, brain_only=True, views=None,
+                 mask=None, roi=None, first=None):
         """
         Viewer for post training, compare examples and dump images for paper
         :param data_dir:
@@ -34,7 +40,13 @@ class Viewer(object):
         self.output_dir = output_dir
         self.counter = 0
         self.data = None
+        self.data_mask = None
         self.mask = eval(mask) if mask is not None else None
+        self.roi = eval(roi) if roi is not None else None
+        self.first = 0 if first is None else first
+
+        # if self.mask is not None and self.roi is not None:
+        #     self.mask['x1'] = self.roi['x1']
 
     def show(self, case_name=None):
         """
@@ -48,7 +60,7 @@ class Viewer(object):
                 break
             if not os.path.isdir(os.path.join(self.data_dir, sub_dir)):
                 continue
-
+            # sub_dir = '022-Guys-0701-T1'
             # Load one case and store it in self.data
             self.load_one_case(sub_dir)
 
@@ -85,36 +97,45 @@ class Viewer(object):
                     suffix_to_nifti_image[suffix] = nib.load(brain_path.replace('_brain', '')).get_data()
 
         self.data = {}
+        self.data_mask = {}
         if 'images' in self.views:
             self.data['images'] = copy.deepcopy(suffix_to_nifti_image)
+            self.data_mask['images'] = copy.deepcopy(suffix_to_nifti_image)
         if 'brains' in self.views:
             self.data['brains'] = copy.deepcopy(suffix_to_nifti_brain)
+            self.data_mask['brains'] = copy.deepcopy(suffix_to_nifti_brain)
         if 'segs' in self.views:
             self.data['segs'] = copy.deepcopy(suffix_to_nifti_seg)
+            self.data_mask['segs'] = copy.deepcopy(suffix_to_nifti_seg)
 
         # Slice according to given mask
-        if self.mask is not None:
+        if self.mask is not None or self.roi is not None:
             for view in self.data.keys():
                 for suffix in self.data[view].keys():
-                    self.data[view][suffix] = \
-                        self.data[view][suffix][self.mask['y1']: self.mask['y2'], self.mask['x1']: self.mask['x2'], :]
+                    if self.roi is not None:
+                        self.data[view][suffix] = \
+                            self.data[view][suffix][self.roi['y1']: self.roi['y2'], self.roi['x1']: self.roi['x2'], :]
+                    if self.mask is not None:
+                        self.data_mask[view][suffix] = \
+                            self.data[view][suffix][self.mask['y1']: self.mask['y2'], self.mask['x1']: self.mask['x2'], :]
 
-    def dump_example(self, case_name, view, suffix, i):
+    def dump_example(self, case_name, view, suffix, i, fig, extent):
         if not os.path.exists(os.path.join(self.output_dir, case_name)):
             os.makedirs(os.path.join(self.output_dir, case_name))
         out_file = os.path.join(self.output_dir, case_name, '%s_%s_%s_%d.%s' %
                                 (case_name, view, suffix, i[0], IMG_FORMAT))
-        data = self.data[view][suffix][:, :, i[0]]
-        formatted = (data * 65535 / np.max(data)).astype('uint16')
-        # formatted = (data * 255 / np.max(data)).astype('uint8')
-        # if suffix == '':
-        #     self.idx_zeros = np.where(formatted == 0)
-        # else:
-        #     formatted[self.idx_zeros] = 0
-
-        im = Image.fromarray(formatted)
-        with open(out_file, 'w') as f:
-            im.save(f)
+        fig.savefig(out_file, bbox_inches=extent, format=IMG_FORMAT, dpi=DPI)
+        # Dump some information regarding ROI and MASK
+        if self.roi is not None:
+            out_file = os.path.join(self.output_dir, case_name, '%s_%s_%s_%d.%s' %
+                                    (case_name, view, suffix, i[0], ROI_FORMAT))
+            with open(out_file, 'w') as f:
+                json.dump(self.roi, f)
+        if self.mask is not None:
+            out_file = os.path.join(self.output_dir, case_name, '%s_%s_%s_%d.%s' %
+                                    (case_name, view, suffix, i[0], MASK_FORMAT))
+            with open(out_file, 'w') as f:
+                json.dump(self.mask, f)
 
     def view_case(self, case_name):
         """
@@ -127,7 +148,7 @@ class Viewer(object):
         val_to_ret = [1]
         save_example = [False]
 
-        i = [1]
+        i = [self.first]
 
         def on_key(event):
             key = event.key
@@ -140,6 +161,10 @@ class Viewer(object):
             elif key == 'd':
                 i[0] = i[0]
                 save_example[0] = True
+            elif key == 'g':
+                age = input("Please choose slice - ")
+                i[0] = int(age)
+                print("Move to slice %d " % i[0])
             elif key == 'p':
                 i[0] = max(i[0] - 1, 1)
             if key == ']':
@@ -153,42 +178,75 @@ class Viewer(object):
                 val_to_ret[0] = 1 if key == 'q' else 0
                 return
 
-        fig, ax = plt.subplots(nrows=len(views), ncols=len(suffixes))
+        if self.mask is not None:
+            fig, ax = plt.subplots(nrows=len(views)+1, ncols=len(suffixes))
+        else:
+            fig, ax = plt.subplots(nrows=len(views), ncols=len(suffixes))
 
         if len(views) == 1 and len(suffixes) == 1:
-            ax = np.array(ax).reshape(1,1)
+            # ax = np.array(ax).reshape(1,1)
+            ax = ax.reshape(2, 1) if self.mask is not None else ax.reshape(1, 1)
         else:
             if len(views) == 1:
-                ax = ax.reshape(1, -1)
+                ax = ax.reshape(2, -1) if self.mask is not None else ax.reshape(1, -1)
             if len(suffixes) == 1:
-                ax = ax.reshape(-1, 1)
+                ax = ax.reshape(-1, 2) if self.mask is not None else ax.reshape(-1, 1)
 
         # fig.tight_layout()
         fig.set_size_inches(18.5, 10.5, forward=True)
 
         while give_me_more[0]:
             for view in views:
-                ax_col = views.index(view)
+                ax_row = views.index(view)
                 for suffix in suffixes:
-                    ax_row = suffixes.index(suffix)
-                    # ax[ax_col][ax_row].set_title('%d' % i[0])
-                    ax[ax_col][ax_row].imshow(self.data[view][suffix][:, :, i[0]],
-                                              interpolation="none", cmap="gray")
-                    ax[ax_col][ax_row].axis('off')
+                    ax_col = suffixes.index(suffix)
+
+                    ax[ax_row][ax_col].set_title("%s, i = %d" % (suffix, i[0]))
+                    cmap = 'gray' if view != 'segs' else plt.get_cmap('YlGnBu')
+
+                    ax[ax_row][ax_col].imshow(self.data[view][suffix][:, :, i[0]],
+                                              interpolation="none", cmap=cmap)
+                    if self.mask is not None:
+                        ax[ax_row][ax_col].add_patch(
+                            patches.Rectangle(
+                            (self.mask['x1'], self.mask['y1']),   # (x,y)
+                            self.mask['x2']-self.mask['x1'],      # width
+                            self.mask['y2'] - self.mask['y1'],    # height
+                            fill=False,
+                            color='red',
+                            linewidth=3.0
+                            )
+                        )
+                        ax[ax_row+1][ax_col].imshow(self.data_mask[view][suffix][:, :, i[0]],
+                                                  interpolation="none", cmap=cmap)
+                        ax[ax_row+1][ax_col].axis('off')
+
+                    ax[ax_row][ax_col].axis('off')
+
+            print("Viewing case: %s, slice: %d" % (case_name, i[0]))
             plt.draw()
 
             fig.canvas.mpl_connect('key_press_event', on_key)
             sys.stdout.flush()
             if not plt.waitforbuttonpress():
-                fig.tight_layout()
+                # fig.tight_layout()
                 pass
 
             if save_example[0]:
                 save_example[0] = False
                 print("Save example")
+
+                # fig.savefig(out_fig, format='eps', dpi=1000)
                 for view in views:
+                    ax_row = views.index(view)
                     for suffix in suffixes:
-                        self.dump_example(case_name, view, suffix, i)
+                        ax_col = suffixes.index(suffix)
+                        extent = ax[ax_row][ax_col].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+                        self.dump_example(case_name, view, suffix, i, fig, extent)
+                        if self.mask is not None:
+                            ax_col = suffixes.index(suffix)
+                            extent = ax[ax_row+1][ax_col].get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+                            self.dump_example(case_name, view, suffix+"_zoom", i, fig, extent)
 
         print('Move to new case')
         return val_to_ret[0]
@@ -203,9 +261,11 @@ if __name__ == '__main__':
     parser.add_argument('--suffixes', dest='suffixes', default=None, type=str, help='suffixes')
     parser.add_argument('--views', dest='views', default=None, type=str, help='views')
     parser.add_argument('--brain_only', dest='brain_only', default=True, type=bool, help='brain only')
+    parser.add_argument('--roi', dest='roi', default=None, type=str, help='roi')
     parser.add_argument('--mask', dest='mask', default=None, type=str, help='mask')
+    parser.add_argument('--first', dest='first', default=None, type=int, help='first slice')
     args = parser.parse_args()
 
     viewer = Viewer(data_dir=args.data_dir, output_dir=args.output_dir, num_of_cases=args.num_of_cases,
-                    suffixes=args.suffixes, brain_only=args.brain_only, views=args.views, mask=args.mask)
+                    suffixes=args.suffixes, brain_only=args.brain_only, views=args.views, mask=args.mask, roi=args.roi, first=args.first)
     viewer.show()

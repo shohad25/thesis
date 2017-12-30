@@ -63,12 +63,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
         elements_in_batch = real_p[name_1].shape[0]
 
         rec_image_1_all = np.abs(real_p[name_1] + 1j * imag_p[name_1])
-        # if args.norm_predict:
-        #     norm_factor = 1.0 / rec_image_1_all.max()
-        #     rec_image_1_all = (rec_image_1_all * norm_factor).astype('float32')
-        # import pdb; pdb.set_trace()
-        # rec_image_1_all_k_space, _ = get_dummy_k_space_and_image(rec_image_1_all)
-        # rec_image_1_all = get_image_from_kspace(rec_image_1_all_k_space.real, rec_image_1_all_k_space.imag)
+
 
         for i in range(0, elements_in_batch):
 
@@ -78,8 +73,8 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
             # k_space_amp_gt = np.log(np.sqrt(k_space_real_gt**2 + k_space_imag_gt**2))
             org_image = get_image_from_kspace(k_space_real_gt,k_space_imag_gt)
 
-            norm_factor = 1.0 / org_image.max()
-            org_image = (org_image * norm_factor).astype('float32')
+            # norm_factor = 1.0 / org_image.max()
+            # org_image = (org_image * norm_factor).astype('float32')
 
             # Interpolation
             # mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
@@ -91,14 +86,18 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
             k_space_imag_gt_zero = data["k_space_imag_gt"][i,:,:] * mask
             rec_image_zero = get_image_from_kspace(k_space_real_gt_zero,k_space_imag_gt_zero)
 
-            norm_factor = 1.0 / rec_image_zero.max()
-            rec_image_zero = (rec_image_zero * norm_factor).astype('float32')
+            # norm_factor = 1.0 / rec_image_zero.max()
+            # rec_image_zero = (rec_image_zero * norm_factor).astype('float32')
 
             # Network predicted model 1
             rec_image_1 = rec_image_1_all[i,:,:].T
 
-            norm_factor = 1.0 / rec_image_1.max()
+            # norm_factor = 1.0 / rec_image_1.max()
+            # rec_image_1 = (rec_image_1 * norm_factor).astype('float32')
+
+            norm_factor = 256
             rec_image_1 = (rec_image_1 * norm_factor).astype('float32')
+
 
             error_proposed = np.sum((rec_image_1 - org_image) ** 2)
             error_zero = np.sum((rec_image_zero - org_image) ** 2)

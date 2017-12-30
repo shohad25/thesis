@@ -7,6 +7,7 @@ NII_SUFFIX = '.nii.gz'
 SEG_SUFFIX = '_seg'
 BRAIN_SUFFIX = '_brain'
 CLASSES = [0,1,2,3]
+CLASSES = [1,2,3]
 
 
 def calc_segmentation_statistics(data_dir, num_of_cases=-1, suffixes=None, brain_only=True):

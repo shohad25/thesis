@@ -211,7 +211,7 @@ class KSpaceSuperResolutionWGAN(BasicModel):
         self.g_vars = [var for var in t_vars if 'G_' in var.name]
 
         # Create RMSProb optimizer with the given learning rate.
-        optimizer_g = tf.train.RMSPropOptimizer(self.FLAGS.learning_rate, centered=True)
+        optimizer_g = tf.train.AdamOptimizer(self.FLAGS.learning_rate)
 
         # Create a variable to track the global step.
         global_step_g = tf.Variable(0, name='global_step_g', trainable=False)
