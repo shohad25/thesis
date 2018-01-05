@@ -8,6 +8,20 @@ PSNR-MEAN-PROPOSED = 35.282331 [dB]
 PSNR-STD-ZERO = 2.614981 [dB]
 PSNR-STD-PROPOSED = 2.209326 [dB]
 
+
+/newdisk/ohadsh/work/runs/Wgan/random_mask_rv_image_space/factor2/random_mask_factor2_unetL2_adam_noRes/model.ckpt-2440000
+MSE-PROPOSED = 21.232124
+PSNR-MEAN-PROPOSED = 34.894865 [dB]
+PSNR-STD-PROPOSED = 2.219798 [dB]
+
+
+
+/newdisk/ohadsh/work/runs/Wgan/random_mask_rv_image_space/factor2/random_mask_factor2_unetL2_adam/model.ckpt-4520000
+MSE-PROPOSED = 17.265455
+PSNR-MEAN-PROPOSED = 35.793019 [dB]
+PSNR-STD-PROPOSED = 2.223025 [dB]
+
+
 Factor 4:
 running:
 /newdisk/ohadsh/work/runs/Wgan/random_mask_rv_image_space/factor4/random_mask_factor4_wgan_unet/model.ckpt-330000

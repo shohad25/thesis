@@ -7,7 +7,7 @@ from appcode.mri.data.mri_data_base import MriDataBase
 from common.files_IO.file_handler import FileHandler
 from appcode.mri.k_space.utils import get_image_from_kspace
 from appcode.mri.k_space.data_creator import get_rv_mask
-
+from appcode.mri.k_space.utils import get_image_from_kspace, get_dummy_k_space_and_image
 file_names = ['k_space_real_gt', 'k_space_imag_gt', 'meta_data']
 import argparse
 
@@ -78,7 +78,7 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
             org_imag = data_set_tt.files_obj['k_space_imag_gt'].memmap[idx]
             data = get_image_from_kspace(org_real, org_imag).transpose(1, 2, 0)
             # data = norm_data(data)
-            write_nifti_data(data, output_path=res_out_path, reference=ref, name=name)
+            # write_nifti_data(data, output_path=res_out_path, reference=ref, name=name)
 
             # Predict from network
             pred_real = f_predict['real'].memmap[idx]
@@ -87,7 +87,19 @@ def create_nifti_from_raw_data(data_dir, predict_path, output_path, data_base, b
             if source == 'k_space':
                 data = get_image_from_kspace(pred_real, pred_imag).transpose(2, 1, 0)
             else:
-                data = 256*np.abs(pred_real+ 1j * pred_imag).transpose(2, 1, 0)
+                # data = 256 * np.abs(pred_real + 1j * pred_imag).transpose(2, 1, 0)
+                mask = get_rv_mask(mask_main_dir=MASKS_DIR, factor=2)
+                data = 256 * np.abs(pred_real + 1j * pred_imag)
+
+                for i in range(0, data.shape[0]):
+                    data_i = data[i, :, :].T
+                    k_pred, _ = get_dummy_k_space_and_image(data_i)
+                    k_pred_real = np.real(k_pred) * (1 - mask) + mask * org_real[i,:,:]
+                    k_pred_imag = np.imag(k_pred) * (1 - mask) + mask * org_imag[i,:,:]
+                    data[i,:,:] = get_image_from_kspace(k_pred_real, k_pred_imag)
+
+                data = data.transpose(1, 2, 0)
+
             # data = norm_data(data)
             write_nifti_data(data, output_path=res_out_path, reference=ref, name=name+"_predict")
 
