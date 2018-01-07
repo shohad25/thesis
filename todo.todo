@@ -1,17 +1,18 @@
 TODO:
- 
- ☐ Use deeper networks:
-   ☐ Discriminator - use VGG-16
-   ☐ Generator - try deeper + image-to-image networks
-   ☐ Resnet
- 
- ☐ Run with normal distribution noise instead of uniform: mean+variance from real/imaginary part estimation
- ☐ Try to understand the k-space distribution and create noise with the same noise
- ☐ local-global architecture
- ☐ 
- ☐ 
+ ☐ Update system diagram @due(2018-01-08 20:00)
+ ☐ Add new examples for factor 2,6 @due(2018-01-08 21:00)
+ ☐ Expand the discussion @due(2018-01-10 20:00)
+ ☐ Send to Tammy @due(2018-01-11 20:00)
+ ☐ Start writing in Thesis format @due(2018-01-16 20:00)
 ＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
 Archive:
+ ✔ local-global architecture @done (18-01-07 22:37) @project(TODO)
+ ✔ Use deeper networks: @done (18-01-07 22:37) @project(TODO)
+ ✔ Try to understand the k-space distribution and create noise with the same noise @done (18-01-07 22:37) @project(TODO)
+ ✔ Run with normal distribution noise instead of uniform: mean+variance from real/imaginary part estimation @done (18-01-07 22:37) @project(TODO)
+ ✔ Resnet @done (18-01-07 22:37) @project(TODO)
+ ✔ Generator - try deeper + image-to-image networks @done (18-01-07 22:37) @project(TODO)
+ ✔ Discriminator - use VGG-16 @done (18-01-07 22:37) @project(TODO)
  ✔ 1. Develop shuffle script @done (17-02-10 09:43)
  ✔ k_space values are very small, but int is > 0 -> So I have normalized the data, see /media/ohadsh/sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/factors.json @done (17-02-10 09:42) @project(Data)
  ✔ 1. Create mnist-like data base with get_batch(50) method. @done (17-02-10 09:42)

@@ -34,6 +34,7 @@ cd ~/work/python/thesis/appcode/mri/k_space; set BASE=/sheard/Ohad/thesis/data/I
 rsync -raP /sheard/Ohad/thesis/data/SchizData/SchizReg/train/24_05_2016/shuffle/* ohadsh@132.72.48.22:/home/ohadsh/work/data/SchizReg/
 snx -s vpn1.bgu.ac.il -u ohas@vpn
 6013
+ssh -Xt ohadsh@132.72.48.22
 
 6. Freesurfer
 set FREESURFER_HOME = /media/ohadsh/sheard/Ohad/Downloads/freesurfe
