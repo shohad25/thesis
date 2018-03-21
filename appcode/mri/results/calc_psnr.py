@@ -8,7 +8,9 @@ NII_SUFFIX = '.nii.gz'
 SEG_SUFFIX = '_seg'
 BRAIN_SUFFIX = '_brain'
 CLASSES = [0]
-
+from scipy import stats
+import mne
+from mne.stats import bonferroni_correction, fdr_correction
 
 def calc_masked_psnr(data_dir, num_of_cases=-1, suffixes=None, brain_only=True):
     """ Go over segmentation results and calc
@@ -68,6 +70,22 @@ def calc_masked_psnr(data_dir, num_of_cases=-1, suffixes=None, brain_only=True):
         # Print total result
         print("PSNR  = %f [dB], %f [dB]" % (psnr_mean.mean(), psnr_std.mean()))
         print("SSIM  = %f, %f\n" % (ssim_mean.mean(), ssim_std.mean()))
+
+    # print stats.ks_2samp(np.array(MSE['_predict']).ravel(), np.array(MSE['_CS']).ravel())
+    # print stats.ks_2samp(np.array(MSE['_predict']).ravel(), np.array(MSE['_IMCNNL2TUNE']).ravel())
+    # print stats.ks_2samp(np.array(MSE['_predict']).ravel(), np.array(MSE['_CNNL2']).ravel())
+    #
+    # pvalues = []
+    # for ex in range(0,30):
+    #     x1 = np.random.permutation(np.array(MSE['_predict']).ravel())[0:80]
+    #     x2 = np.random.permutation(np.array(MSE['_IMCNNL2TUNE']).ravel())[0:80]
+    #     pvalues.append(stats.ks_2samp(x1, x2)[1])
+    #
+    # print fdr_correction(pvalues)
+    #
+    # print stats.ks_2samp(np.array(SSIM['_predict']).ravel(), np.array(SSIM['_CS']).ravel())
+    # print stats.ks_2samp(np.array(SSIM['_predict']).ravel(), np.array(SSIM['_IMCNNL2TUNE']).ravel())
+    # print stats.ks_2samp(np.array(SSIM['_predict']).ravel(), np.array(SSIM['_CNNL2']).ravel())
 
 
 def calc_statistics(suffix_to_nifti):

@@ -42,7 +42,7 @@ class DataCreator:
         """
         data_base = self.mri_data_base
         items = self.mri_data_base.items if item == "all" else [item]
-
+        # num_of_cases = 0
         # For all cases in items
         for case in items:
             try:
@@ -105,10 +105,17 @@ class DataCreator:
                                       meta_data=meta_data_to_write, image_gt=image_2d_gt), debug)
                     # Add to counter
                     counter += 1
-                # print "ONE EXAMPLE"
-                # exit()
+                # if tt == 'train':
+                #     num_of_cases += 1
+                # print num_of_cases
+                # if num_of_cases >= 100:
+                #     break
             except:
+                # if num_of_cases >= 100:
+                #     break
                 continue
+
+
     def create_meta_data(self, meta_data, case, axial_slice, aug, norm_factor):
         """
         Create meta data vector

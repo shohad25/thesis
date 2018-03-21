@@ -55,12 +55,16 @@ def calc_masked_psnr(data_dir, num_of_cases=-1, suffixes=None, brain_only=True):
     # Print results
     print('Results\n')
     for suffix in PSNR.keys():
+        # import pdb
+        # pdb.set_trace()
         mse_array = np.array(MSE[suffix])
+        arg_min = np.argmax(mse_array, axis=0)
         psnr_mean = calc_psnr(mse_array).mean(axis=0)
         psnr_std = calc_psnr(mse_array).std(axis=0)
         print("Version - %s" % suffix)
         # Print total result
         print("PSNR  = %f, %f ||| %s , %s" % (psnr_mean.mean(), psnr_std.mean(), psnr_mean, psnr_std))
+        print('MIN %s - ' % arg_min)
 
 
 def calc_statistics(suffix_to_nifti, suffix_to_nifti_imag):

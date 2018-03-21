@@ -162,6 +162,15 @@ def calc_MHD(brain1, brain2):
     contour_1 = bw_1 == 0
     contour_2 = bw_2 == 0
 
+    # import matplotlib.pyplot as plt
+    # temp = np.roll(contour_1, shift=20, axis=0)
+    # temp = np.roll(temp, shift=15, axis=1)
+    # plt.imshow(10 * contour_1 + 5 * temp, cmap=plt.get_cmap('BuGn'))
+    # plt.axis('off')
+    # plt.colorbar()
+    # plt.show()
+    # exit()
+
     FHD = (1.0 / np.sum(contour_2)) * np.sum(bw_1 * contour_2)
     RHD = (1.0 / np.sum(contour_1)) * np.sum(bw_2 * contour_1)
     MHD = 0.5 * (FHD + RHD)

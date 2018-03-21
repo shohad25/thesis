@@ -1,4 +1,4 @@
-# !/home/ohadsh/Tools/anaconda/bin/python
+# !/home/ohadsh/anaconda2/bin/python
 import numpy as np
 import os
 import argparse
@@ -61,6 +61,7 @@ class Viewer(object):
             if not os.path.isdir(os.path.join(self.data_dir, sub_dir)):
                 continue
             # sub_dir = '022-Guys-0701-T1'
+            # sub_dir = '019-Guys-0702-T1'
             # Load one case and store it in self.data
             self.load_one_case(sub_dir)
 
@@ -228,7 +229,7 @@ class Viewer(object):
 
             fig.canvas.mpl_connect('key_press_event', on_key)
             sys.stdout.flush()
-            if not plt.waitforbuttonpress():
+            if not plt.waitforbuttonpress(timeout=0):
                 # fig.tight_layout()
                 pass
 

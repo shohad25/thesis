@@ -12,6 +12,7 @@ from scipy import ndimage
 from collections import defaultdict
 from scipy import stats
 import argparse
+from skimage.measure import compare_ssim as ssim
 start_line = 0    
 
 
@@ -42,6 +43,8 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
     error_zero_all = []
     error_interp_all = []
     error_proposed_all = []
+    ssim_proposed_all = []
+    ssim_zero_all = []
     num_of_batches = args.num_of_batches
     batches = 0
 
@@ -62,8 +65,13 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
         name_1 = real_p.keys()[0]
         elements_in_batch = real_p[name_1].shape[0]
 
-        rec_image_1_all = np.abs(real_p[name_1] + 1j * imag_p[name_1])
+        mask = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=args.sampling_factor)
 
+        rec_image_1_all = 256 * np.abs(real_p[name_1] + 1j * imag_p[name_1])
+        # rec_image_1_all = real_p[name_1] + 1j * imag_p[name_1]
+
+        # k_pred, _ = get_dummy_k_space_and_image(rec_image_1_all)
+        # rec_image_1_all = get_image_from_kspace(np.real(k_pred), np.imag(k_pred))
 
         for i in range(0, elements_in_batch):
 
@@ -78,7 +86,7 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
 
             # Interpolation
             # mask = get_random_mask(w=256, h=256, factor=sampling_factor, start_line=start_line, keep_center=keep_center)
-            mask = get_rv_mask(mask_main_dir='/media/ohadsh/Data/ohadsh/work/matlab/thesis/', factor=args.sampling_factor)
+
             reduction = np.sum(mask) / float(mask.ravel().shape[0])
             # print (reduction)
 
@@ -92,29 +100,28 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
             # Network predicted model 1
             rec_image_1 = rec_image_1_all[i,:,:].T
 
+            # New method for creating predicted image from k-space
+            k_pred, _ = get_dummy_k_space_and_image(rec_image_1)
+            k_pred_real = np.real(k_pred) * (1-mask) + k_space_real_gt_zero
+            k_pred_imag = np.imag(k_pred) * (1-mask) + k_space_imag_gt_zero
+            rec_image_1 = get_image_from_kspace(k_pred_real, k_pred_imag)
+
             # norm_factor = 1.0 / rec_image_1.max()
             # rec_image_1 = (rec_image_1 * norm_factor).astype('float32')
 
-            norm_factor = 256
-            rec_image_1 = (rec_image_1 * norm_factor).astype('float32')
-
+            # norm_factor = 256.0
+            # rec_image_1 = (rec_image_1 * norm_factor).astype('float32')
 
             error_proposed = np.sum((rec_image_1 - org_image) ** 2)
             error_zero = np.sum((rec_image_zero - org_image) ** 2)
 
-            # ax[0].set_title('Org Image + %f, (%f,%f)' % (0.0, org_image.ravel().min(), org_image.ravel().max()))
-            # ax[0].imshow(org_image, interpolation="none", cmap="gray")
-            # ax[1].set_title('Zero Image + %f, (%f,%f)' % (error_zero, rec_image_zero.ravel().min(), rec_image_zero.ravel().max()))
-            # ax[1].imshow(rec_image_zero, interpolation="none", cmap="gray")
-            # ax[2].set_title(
-            #     'Proposed Image + %f, (%f,%f)' % (error_proposed, rec_image_1.ravel().min(), rec_image_1.ravel().max()))
-            # ax[2].imshow(rec_image_1, interpolation="none", cmap="gray")
-            # plt.draw()
-            # plt.waitforbuttonpress(timeout=-1)
-
-            # if error_proposed < 1000:
             error_zero_all.append(error_zero)
             error_proposed_all.append(error_proposed)
+
+            ssim_proposed = ssim(X=org_image, Y=rec_image_1, data_range=rec_image_1.max() - rec_image_1.min())
+            ssim_zero = ssim(X=org_image, Y=rec_image_zero, data_range=rec_image_zero.max() - rec_image_zero.min())
+            ssim_proposed_all.append(ssim_proposed)
+            ssim_zero_all.append(ssim_zero)
 
         batches += 1
         print("Done on %d examples " % (args.mini_batch_size*batches))
@@ -129,6 +136,11 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
     psnr_std_proposed = psnr(np.array(error_proposed_all)).std()
     print stats.ttest_1samp(psnr(np.array(error_proposed_all)), psnr_std_proposed)
 
+    ssim_zero = np.array(ssim_zero_all).mean()
+    ssim_zero_std = np.array(ssim_zero_all).std()
+    ssim_proposed = np.array(ssim_proposed_all).mean()
+    ssim_proposed_std = np.array(ssim_proposed_all).std()
+
     print("MSE-ZERO = %f" % mse_zero)
     print("MSE-PROPOSED = %f" % mse_proposed)
 
@@ -137,6 +149,14 @@ def post_train_2v(data_dir, predict_paths, h=256, w=256, tt='test', keep_center=
 
     print("PSNR-STD-ZERO = %f [dB]" % psnr_std_zero)
     print("PSNR-STD-PROPOSED = %f [dB]" % psnr_std_proposed)
+
+    ## SSIM
+    print('---------------------------------------------')
+    print("SSIM-MEAN-ZERO = %f [dB]" % ssim_zero)
+    print("SSIM-MEAN-PROPOSED = %f [dB]" % ssim_proposed)
+
+    print("SSIM-STD-ZERO = %f [dB]" % ssim_zero_std)
+    print("SSIM-STD-PROPOSED = %f [dB]" % ssim_proposed_std)
 
 
 def psnr(mse):

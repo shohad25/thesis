@@ -3,6 +3,7 @@ import numpy as np
 import os
 import argparse
 NII_SUFFIX = '.nii.gz'
+# SEG_CMD = '$FSLDIR/bin/fast -N -n 3 -I 4 '
 SEG_CMD = '$FSLDIR/bin/fast -n 3 -I 4 '
 BET_CMD = '$FSLDIR/bin/bet'
 BET_PARAMS = '-f 0.5 -g 0'
